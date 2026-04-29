@@ -1,0 +1,49 @@
+/* ADDITIONS TO globals.css
+ *
+ * After running `npx shadcn init --preset b6lcVNL6xs --template vite`, your
+ * `src/index.css` (or `globals.css`) will already contain:
+ *   - Tailwind v4 imports
+ *   - shadcn theme tokens (--background, --foreground, etc.)
+ *   - --font-sans (EB Garamond) and --font-heading (Montserrat) variables
+ *
+ * The CLI usually adds `--font-heading` to the @theme inline block so
+ * `font-heading` becomes a Tailwind utility. If it doesn't, add this
+ * to your generated CSS file inside the @theme inline block:
+ */
+
+/*
+@theme inline {
+  --font-sans: var(--font-sans);
+  --font-heading: var(--font-heading);
+}
+*/
+
+/* If `font-heading` Tailwind utility still doesn't work, you can fall back
+ * to inline styles in components:
+ *
+ *   <h1 style={{ fontFamily: 'var(--font-heading)' }}>...</h1>
+ *
+ * Or add a plain CSS class:
+ */
+
+.heading {
+    font-family: var(--font-heading);
+}
+
+/* Reading-app specific tokens that don't belong in shadcn's theme.
+ * These are separate because they apply to BOOK CONTENT in the iframe,
+ * not to the app chrome.
+ */
+:root {
+    --highlight-yellow: oklch(0.92 0.08 90);
+    --highlight-blue: oklch(0.88 0.06 240);
+    --highlight-green: oklch(0.88 0.08 140);
+    --highlight-pink: oklch(0.88 0.06 350);
+}
+
+.dark {
+    --highlight-yellow: oklch(0.4 0.06 90);
+    --highlight-blue: oklch(0.35 0.05 240);
+    --highlight-green: oklch(0.35 0.06 140);
+    --highlight-pink: oklch(0.35 0.05 350);
+}

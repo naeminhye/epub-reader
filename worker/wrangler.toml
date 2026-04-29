@@ -1,0 +1,24 @@
+name = "epub-reader-vi-translate"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# Optional: bind a KV namespace for rate limiting.
+# After running `wrangler kv namespace create RATE_LIMIT`, paste the id here.
+# If you skip this, rate limiting is silently disabled (fine for personal use).
+#
+# [[kv_namespaces]]
+# binding = "RATE_LIMIT"
+# id = "<your-kv-namespace-id>"
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "56914155f8564c35a7b254b9fb3c3fe2"
+
+[vars]
+# Comma-separated list of allowed origins. Use "*" for development.
+# In production, set this to your deployed frontend domain(s):
+ALLOWED_ORIGINS = "https://epub-reader-vi-translate.epub-reader.workers.dev,http://localhost:5173"
+#   ALLOWED_ORIGINS = "*"
+
+# Note: GEMINI_API_KEY is set as a secret, NOT in this file.
+# Run: wrangler secret put GEMINI_API_KEY

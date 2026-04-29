@@ -14,7 +14,7 @@ interface LibraryState {
     removeBook: (id: string) => Promise<void>;
 }
 
-export const useLibraryStore = create<LibraryState>((set, get) => ({
+export const useLibraryStore = create<LibraryState>((set) => ({
     books: [],
     isLoading: false,
     isImporting: false,

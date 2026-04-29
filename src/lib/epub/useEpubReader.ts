@@ -3,13 +3,39 @@ import ePub, { type Book, type Rendition, type NavItem, type Location } from 'ep
 import readerCss from '@/styles/reader.css?raw';
 import type { ReadingPrefs } from '@/lib/db/schema';
 
+export interface SelectionInfo {
+    text: string;
+    cfiRange: string;
+    rect: {
+        top: number;
+        left: number;
+        right: number;
+        bottom: number;
+        width: number;
+        height: number;
+    };
+}
+
+export interface SearchResult {
+    cfi: string;
+    excerpt: string;
+}
+
+export type LocationChangeHandler = (
+    cfi: string,
+    progress: number,
+    pageInfo: { page: number; total: number }
+) => void;
+
+export type SelectionHandler = (info: SelectionInfo | null) => void;
+
 interface UseEpubReaderOptions {
     blob: Blob | null;
     containerRef: React.RefObject<HTMLDivElement | null>;
     initialLocation?: string | null;
     prefs: ReadingPrefs;
-    onLocationChange?: (cfi: string, progress: number) => void;
-    onSelection?: (text: string, cfiRange: string) => void;
+    onLocationChange?: LocationChangeHandler;
+    onSelection?: SelectionHandler;
 }
 
 interface UseEpubReaderReturn {
@@ -19,18 +45,10 @@ interface UseEpubReaderReturn {
     next: () => void;
     prev: () => void;
     goTo: (target: string) => void;
+    search: (query: string) => Promise<SearchResult[]>;
     rendition: Rendition | null;
 }
 
-/**
- * Wraps the epubjs lifecycle. Mounts a Rendition to containerRef,
- * persists location changes, exposes navigation, and bridges text selection.
- *
- * Important behaviors:
- *  - Recreates the rendition when `blob` changes
- *  - Re-applies styles when prefs change (without re-mounting)
- *  - Re-binds selection listener after every chapter render (epubjs creates a fresh iframe per chapter)
- */
 export function useEpubReader({
     blob,
     containerRef,
@@ -41,24 +59,29 @@ export function useEpubReader({
 }: UseEpubReaderOptions): UseEpubReaderReturn {
     const bookRef = useRef<Book | null>(null);
     const renditionRef = useRef<Rendition | null>(null);
+    // Shared ref written by epubjs 'selected' event, read by bindSelection.
+    // This is the reliable way to get a valid CFI for the current selection.
+    const lastCfiRangeRef = useRef<string>('');
     const [isReady, setIsReady] = useState(false);
     const [toc, setToc] = useState<NavItem[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    // Keep latest callbacks and prefs in refs so the main effect doesn't need them in deps.
-    // The content hook (registered once at mount) reads from these refs at runtime.
     const onLocationChangeRef = useRef(onLocationChange);
     const onSelectionRef = useRef(onSelection);
     const prefsRef = useRef(prefs);
+
     useEffect(() => {
         onLocationChangeRef.current = onLocationChange;
         onSelectionRef.current = onSelection;
     }, [onLocationChange, onSelection]);
+
     useEffect(() => {
         prefsRef.current = prefs;
     }, [prefs]);
 
-    // Main lifecycle: mount/unmount the book + rendition when blob changes
+    // Key: blob + flowMode + spread together. Changing flow mode recreates the rendition.
+    const flowKey = `${prefs.flowMode}:${prefs.spread}`;
+
     useEffect(() => {
         if (!blob || !containerRef.current) return;
 
@@ -66,81 +89,114 @@ export function useEpubReader({
         setIsReady(false);
         setError(null);
 
+        // Capture the location to restore after flow mode change
+        const restoreLocation = renditionRef.current?.location?.start?.cfi
+            ?? initialLocation
+            ?? undefined;
+
+        // Clean up previous rendition before creating new one
+        try { renditionRef.current?.destroy(); } catch { /* ignore */ }
+        renditionRef.current = null;
+
         const init = async () => {
             try {
-                // epubjs accepts ArrayBuffer directly via the openAs: 'binary' option
-                const arrayBuffer = await blob.arrayBuffer();
-                if (cancelled) return;
+                // Load book if not already loaded
+                if (!bookRef.current) {
+                    const arrayBuffer = await blob.arrayBuffer();
+                    if (cancelled) return;
+                    const book = ePub(arrayBuffer, { openAs: 'binary' });
+                    bookRef.current = book;
+                    await book.ready;
+                    if (cancelled) return;
+                }
 
-                const book = ePub(arrayBuffer, { openAs: 'binary' });
-                bookRef.current = book;
+                const book = bookRef.current!;
 
-                await book.ready;
-                if (cancelled) return;
+                // book.ready does not guarantee book.packaging is populated in all
+                // epubjs versions — explicitly wait for metadata which forces packaging
+                // to resolve before we call renderTo (which internally reads packaging
+                // via injectIdentifier in the content hook).
+                await book.loaded.metadata;
+                if (cancelled) return;;
 
                 const rendition = book.renderTo(containerRef.current!, {
                     width: '100%',
                     height: '100%',
-                    flow: 'paginated',
-                    spread: 'none', // single page, simpler for translation overlays
-                    allowScriptedContent: false,
+                    flow: prefsRef.current.flowMode === 'scrolled' ? 'scrolled-doc' : 'paginated',
+                    spread: prefsRef.current.spread,
                     manager: 'default',
                 });
                 renditionRef.current = rendition;
 
-                // Inject our reader CSS into every rendered chapter
+                // Content hook: runs for EVERY chapter iframe that gets rendered.
                 rendition.hooks.content.register((contents) => {
-                    contents.addStylesheetCss(readerCss).catch(() => {
-                        // Some EPUBs reject stylesheet injection; fall back to inline
+                    // Guard: if book was destroyed between hook registration and firing,
+                    // packaging may be undefined — bail out silently.
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    if (!(book as any).packaging) return;
+
+                    // Inject reader CSS
+                    try {
                         const styleEl = contents.document.createElement('style');
                         styleEl.textContent = readerCss;
                         contents.document.head.appendChild(styleEl);
-                    });
+                    } catch (e) {
+                        console.warn('[epub] CSS inject failed:', e);
+                    }
 
-                    // Apply current theme/font classes to the chapter's body
+                    // Apply theme/font/size — must read from ref, not closure, so latest prefs are used
                     applyBodyClasses(contents.document.body, prefsRef.current);
 
-                    // Re-bind selection on the new iframe document
-                    bindSelection(contents.document, (text, cfiRange) => {
-                        onSelectionRef.current?.(text, cfiRange);
-                    });
+                    // Bind selection bridge
+                    const iframe = contents.document.defaultView?.frameElement as HTMLIFrameElement | undefined;
+                    if (iframe) {
+                        bindSelection(contents.document, iframe, lastCfiRangeRef, (info) => {
+                            onSelectionRef.current?.(info);
+                        });
+                    } else {
+                        console.warn('[epub] frameElement null — selection bridge not bound for this chapter');
+                    }
                 });
 
-                // Native epubjs selected event (for CFI-based highlights)
-                rendition.on('selected', (cfiRange) => {
-                    // We capture text via our own bridge for translation flow,
-                    // but we expose cfiRange here for the highlight feature later.
-                    void cfiRange;
+                // epubjs 'selected' fires with a valid CFI range after every selection.
+                // We store it in a ref so bindSelection can attach it to the SelectionInfo.
+                rendition.on('selected', (cfiRange: string) => {
+                    lastCfiRangeRef.current = cfiRange ?? '';
                 });
 
-                // Navigation/location persistence
                 rendition.on('relocated', (location: Location) => {
                     if (!location?.start?.cfi) return;
                     const progress = book.locations.length()
                         ? book.locations.percentageFromCfi(location.start.cfi)
                         : location.start.percentage ?? 0;
-                    onLocationChangeRef.current?.(location.start.cfi, progress);
+                    const pageInfo = location.start.displayed ?? { page: 1, total: 1 };
+                    onLocationChangeRef.current?.(location.start.cfi, progress, pageInfo);
                 });
 
-                // Load TOC
+                // 'rendered' fires every time epubjs renders a spine item into a view
+                // (including pre-rendered adjacent chapters). Re-apply theme here so
+                // background-rendered chapters inherit current prefs.
+                rendition.on('rendered', (_section: unknown, view: unknown) => {
+                    try {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const doc = (view as any)?.document as Document | undefined;
+                        if (doc?.body) applyBodyClasses(doc.body, prefsRef.current);
+                    } catch { /* ignore — view may not have a document yet */ }
+                });
+
                 const nav = await book.loaded.navigation;
                 if (!cancelled) setToc(nav.toc ?? []);
 
-                // Display initial location (or beginning)
-                await rendition.display(initialLocation ?? undefined);
+                await rendition.display(restoreLocation ?? undefined);
 
-                // Generate locations in the background for accurate progress %
-                // This is slow on large books but doesn't block reading
-                book.locations.generate(1024).catch(() => {
-                    // ignore - progress will fall back to per-chapter %
-                });
+                book.locations.generate(1024).catch(() => { });
 
                 if (!cancelled) setIsReady(true);
             } catch (err) {
                 if (!cancelled) {
                     const message = err instanceof Error ? err.message : 'Failed to load EPUB';
                     setError(message);
-                    console.error('EPUB load error:', err);
+                    console.error('[epub] load error:', err);
                 }
             }
         };
@@ -149,35 +205,58 @@ export function useEpubReader({
 
         return () => {
             cancelled = true;
-            try {
-                renditionRef.current?.destroy();
-            } catch {
-                // already destroyed
-            }
-            try {
-                bookRef.current?.destroy();
-            } catch {
-                // already destroyed
-            }
+            // Don't destroy the book here — only destroy rendition.
+            // Book is reused when only flow mode changes.
+            try { renditionRef.current?.destroy(); } catch { /* ignore */ }
             renditionRef.current = null;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [blob, flowKey]);
+
+    // Destroy book only when blob itself changes
+    useEffect(() => {
+        return () => {
+            try { bookRef.current?.destroy(); } catch { /* ignore */ }
             bookRef.current = null;
         };
-        // We intentionally exclude prefs/initialLocation from this effect's deps:
-        // - prefs changes are handled in a separate effect that re-applies styles
-        // - initialLocation is read once on mount
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [blob]);
 
-    // Re-apply prefs to all currently-rendered chapters when they change
+    // Re-apply theme/font/size to all live views when prefs change.
+    // Two-pronged:
+    //   1. rendition.themes.override() — epubjs's own API, reaches ALL rendered views
+    //      including pre-rendered adjacent chapters that getContents() misses.
+    //   2. getContents() loop — belt-and-suspenders for any views themes.override misses.
     useEffect(() => {
         const rendition = renditionRef.current;
         if (!rendition || !isReady) return;
 
-        const contents = rendition.getContents();
-        contents.forEach((c) => {
-            applyBodyClasses(c.document.body, prefs);
-        });
-    }, [prefs, isReady]);
+        // Map our prefs to CSS custom properties via themes.override
+        // These override whatever the EPUB's own stylesheet sets on the body.
+        const overrides: Record<string, string> = {
+            '--reader-font-size': `${prefs.fontSize}px`,
+            '--reader-line-height': String(prefs.lineHeight),
+            '--reader-max-width': `${prefs.maxWidthCh}ch`,
+        };
+
+        // Theme colors
+        const bgMap = { light: '#fafaf9', sepia: '#f4ecd8', dark: '#1a1a1a' };
+        const fgMap = { light: '#1a1a1a', sepia: '#5b4636', dark: '#e5e5e5' };
+        overrides['background-color'] = bgMap[prefs.theme];
+        overrides['color'] = fgMap[prefs.theme];
+
+        try {
+            Object.entries(overrides).forEach(([k, v]) => {
+                rendition.themes.override(k, v, true);
+            });
+        } catch { /* rendition may be mid-destroy */ }
+
+        // Also apply body classes (theme/font) via getContents loop
+        try {
+            rendition.getContents().forEach((c) => {
+                applyBodyClasses(c.document.body, prefs);
+            });
+        } catch { /* ignore */ }
+    }, [prefs.theme, prefs.readerFont, prefs.fontSize, prefs.lineHeight, prefs.maxWidthCh, isReady]);
 
     const next = useCallback(() => {
         renditionRef.current?.next().catch(() => { });
@@ -191,6 +270,19 @@ export function useEpubReader({
         renditionRef.current?.display(target).catch(() => { });
     }, []);
 
+    const search = useCallback(async (query: string): Promise<SearchResult[]> => {
+        const book = bookRef.current;
+        if (!book || !query.trim()) return [];
+        try {
+            // epubjs search returns array of {cfi, excerpt} per spine item
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const results = await (book as any).search(query.trim());
+            return (results ?? []) as SearchResult[];
+        } catch {
+            return [];
+        }
+    }, []);
+
     return {
         isReady,
         toc,
@@ -198,19 +290,19 @@ export function useEpubReader({
         next,
         prev,
         goTo,
+        search,
         rendition: renditionRef.current,
     };
 }
 
 function applyBodyClasses(body: HTMLElement, prefs: ReadingPrefs) {
     if (!body) return;
-    // Theme
     body.classList.remove('theme-light', 'theme-sepia', 'theme-dark');
     body.classList.add(`theme-${prefs.theme}`);
-    // Font
     body.classList.remove('font-eb-garamond', 'font-merriweather', 'font-system-serif');
     body.classList.add(`font-${prefs.readerFont}`);
-    // Font size + line height via inline style on root for instant update
+    // Scroll mode class — controls max-width behaviour
+    body.classList.toggle('mode-scrolled', prefs.flowMode === 'scrolled');
     body.style.setProperty('--reader-font-size', `${prefs.fontSize}px`);
     body.style.setProperty('--reader-line-height', String(prefs.lineHeight));
     body.style.setProperty('--reader-max-width', `${prefs.maxWidthCh}ch`);
@@ -218,27 +310,51 @@ function applyBodyClasses(body: HTMLElement, prefs: ReadingPrefs) {
 
 function bindSelection(
     doc: Document,
-    callback: (text: string, cfiRange: string) => void
+    iframe: HTMLIFrameElement,
+    cfiRangeRef: React.MutableRefObject<string>,
+    callback: (info: SelectionInfo | null) => void
 ) {
-    // Debounced selection handler: fires after the user finishes selecting,
-    // not on every micro-movement.
     let timer: number | undefined;
 
     const handler = () => {
         clearTimeout(timer);
         timer = window.setTimeout(() => {
             const sel = doc.getSelection();
-            if (!sel || sel.isCollapsed) return;
+            if (!sel || sel.isCollapsed) { callback(null); return; }
             const text = sel.toString().trim();
-            if (text.length < 1) return;
-            // We pass an empty cfiRange here; the actual CFI is generated
-            // separately when needed (for highlight persistence).
-            callback(text, '');
-        }, 250);
+            if (!text) { callback(null); return; }
+
+            const range = sel.getRangeAt(0);
+            const iframeRect = iframe.getBoundingClientRect();
+            const rangeRect = range.getBoundingClientRect();
+
+            const rect = {
+                top: rangeRect.top + iframeRect.top,
+                left: rangeRect.left + iframeRect.left,
+                right: rangeRect.right + iframeRect.left,
+                bottom: rangeRect.bottom + iframeRect.top,
+                width: rangeRect.width,
+                height: rangeRect.height,
+            };
+
+            // Read CFI from the ref — written by epubjs's 'selected' event which
+            // fires reliably with a valid CFI whenever the user finishes selecting.
+            const cfiRange = cfiRangeRef.current;
+
+            callback({ text, cfiRange, rect });
+        }, 200);
+    };
+
+    const clearHandler = () => {
+        clearTimeout(timer);
+        timer = window.setTimeout(() => {
+            const sel = doc.getSelection();
+            if (!sel || sel.isCollapsed || !sel.toString().trim()) callback(null);
+        }, 50);
     };
 
     doc.addEventListener('selectionchange', handler);
-    // Also listen for mouseup/touchend as a more reliable trigger across browsers
     doc.addEventListener('mouseup', handler);
     doc.addEventListener('touchend', handler);
+    doc.addEventListener('mousedown', clearHandler);
 }

@@ -10,8 +10,15 @@ export interface Book {
     fileSize: number;
     addedAt: Date;
     lastReadAt?: Date;
-    progress: number; // 0-1
-    currentLocation?: string; // foliate CFI or section index
+    progress: number;
+    currentLocation?: string;
+}
+
+/** Derived from progress — not stored, computed at read time */
+export function bookStatus(book: Book): 'new' | 'reading' | 'done' {
+    if (book.progress >= 0.95) return 'done';
+    if (book.progress > 0 || book.lastReadAt) return 'reading';
+    return 'new';
 }
 
 export interface Highlight {
@@ -25,7 +32,7 @@ export interface Highlight {
 }
 
 export interface TranslationCache {
-    key: string; // hash(text):sourceLang:targetLang
+    key: string;
     sourceText: string;
     translatedText: string;
     sourceLang: string;
@@ -41,7 +48,7 @@ export interface Definition {
 }
 
 export interface DictionaryCache {
-    key: string; // word:lang
+    key: string;
     word: string;
     lang: string;
     definitions: Definition[];
@@ -59,6 +66,10 @@ export interface ReadingPrefs {
     translationMode: 'on-demand' | 'auto-tap';
     targetLang: 'vi';
     maxWidthCh: number;
+    flowMode: 'paginated' | 'scrolled';
+    spread: 'none' | 'auto';
+    autoTranslate: boolean;        // translate entire page on load
+    showOriginal: boolean;         // in auto-translate mode, show original text alongside
 }
 
 export const DEFAULT_PREFS: ReadingPrefs = {
@@ -70,6 +81,10 @@ export const DEFAULT_PREFS: ReadingPrefs = {
     translationMode: 'on-demand',
     targetLang: 'vi',
     maxWidthCh: 65,
+    flowMode: 'paginated',
+    spread: 'none',
+    autoTranslate: false,
+    showOriginal: false,
 };
 
 export class EpubReaderDB extends Dexie {
@@ -89,15 +104,39 @@ export class EpubReaderDB extends Dexie {
             dictionary: 'key, word, createdAt',
             prefs: 'id',
         });
+
+        // Version 2: adds flowMode + spread to prefs (auto-migrated — new fields just default)
+        this.version(2).stores({
+            books: 'id, title, author, lastReadAt, addedAt',
+            highlights: 'id, bookId, cfi, createdAt',
+            translations: 'key, bookId, createdAt',
+            dictionary: 'key, word, createdAt',
+            prefs: 'id',
+        });
+
+        // Version 3: adds autoTranslate + showOriginal to prefs
+        this.version(3).stores({
+            books: 'id, title, author, lastReadAt, addedAt',
+            highlights: 'id, bookId, cfi, createdAt',
+            translations: 'key, bookId, createdAt',
+            dictionary: 'key, word, createdAt',
+            prefs: 'id',
+        });
     }
 
     async getPrefs(): Promise<ReadingPrefs> {
         const prefs = await this.prefs.get('singleton');
         if (prefs) {
-            // Defensive migration: old prefs may have readerFont: 'lora' from earlier dev
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            if ((prefs.readerFont as any) === 'lora') {
-                const migrated = { ...prefs, readerFont: 'eb-garamond' as const };
+            const p = prefs as any;
+            const patch: Partial<ReadingPrefs> = {};
+            if (p.readerFont === 'lora') patch.readerFont = 'eb-garamond';
+            if (!p.flowMode) patch.flowMode = 'paginated';
+            if (!p.spread) patch.spread = 'none';
+            if (p.autoTranslate === undefined) patch.autoTranslate = false;
+            if (p.showOriginal === undefined) patch.showOriginal = false;
+            if (Object.keys(patch).length) {
+                const migrated = { ...prefs, ...patch } as ReadingPrefs;
                 await this.prefs.put(migrated);
                 return migrated;
             }

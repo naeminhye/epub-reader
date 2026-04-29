@@ -17,7 +17,7 @@ id = "56914155f8564c35a7b254b9fb3c3fe2"
 [vars]
 # Comma-separated list of allowed origins. Use "*" for development.
 # In production, set this to your deployed frontend domain(s):
-ALLOWED_ORIGINS = "https://epub-reader-vi-translate.epub-reader.workers.dev,http://localhost:5173"
+ALLOWED_ORIGINS = "https://aurobie.vercel.app,https://epub-reader-vi-translate.epub-reader.workers.dev,http://localhost:5173"
 #   ALLOWED_ORIGINS = "*"
 
 # Note: GEMINI_API_KEY is set as a secret, NOT in this file.

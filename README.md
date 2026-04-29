@@ -1,4 +1,4 @@
-# EPUB Reader VI
+# Aurobie
 
 A web-based EPUB reader with Vietnamese translation, auto-translate, search, study group, and reading progress tracking. Built with React + Vite and a Cloudflare Worker proxy for the Gemini translation API.
 

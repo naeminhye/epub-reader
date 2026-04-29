@@ -64,7 +64,7 @@ export interface ReadingPrefs {
     fontSize: number;
     lineHeight: number;
     theme: 'light' | 'sepia' | 'dark';
-    readerFont: 'eb-garamond' | 'merriweather' | 'system-serif';
+    readerFont: 'eb-garamond' | 'merriweather' | 'montserrat' | 'public-sans' | 'system-serif';
     translationMode: 'on-demand' | 'auto-tap';
     targetLang: TargetLang;
     maxWidthCh: number;
@@ -145,6 +145,16 @@ export class EpubReaderDB extends Dexie {
 
         // Version 5: targetLang widened to support multiple languages
         this.version(5).stores({
+            books: 'id, title, author, lastReadAt, addedAt',
+            highlights: 'id, bookId, cfi, createdAt',
+            translations: 'key, bookId, createdAt',
+            dictionary: 'key, word, createdAt',
+            prefs: 'id',
+            study: 'id, bookId, createdAt',
+        });
+
+        // Version 6: adds Montserrat and Public Sans to readerFont options
+        this.version(6).stores({
             books: 'id, title, author, lastReadAt, addedAt',
             highlights: 'id, bookId, cfi, createdAt',
             translations: 'key, bookId, createdAt',

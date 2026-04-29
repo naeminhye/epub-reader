@@ -18,7 +18,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useReaderStore } from '@/stores/readerStore';
 import { useLocale, useT } from '@/lib/i18n/context';
-import type { Locale } from '@/lib/i18n/translations';
+// import type { Locale } from '@/lib/i18n/translations';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
     ArrowLeft01Icon,
@@ -153,18 +153,25 @@ export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen }: Rea
                     <HugeiconsIcon icon={prefs.theme === 'dark' ? Moon02Icon : Sun01Icon} size={16} />
                 </Button>
 
-                {/* App language toggle — cycles EN → VI → KO */}
-                <Button
-                    variant="ghost" size="sm"
-                    className="shrink-0 text-xs font-normal"
-                    title={t.language}
-                    onClick={() => {
-                        const next: Record<string, Locale> = { en: 'vi', vi: 'ko', ko: 'en' };
-                        setLocale(next[locale] ?? 'en');
-                    }}
-                >
-                    {locale.toUpperCase()}
-                </Button>
+                {/* App UI language — dropdown */}
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="shrink-0 text-xs font-normal" title={t.language}>
+                            {locale.toUpperCase()}
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        {(['en', 'vi', 'ko'] as const).map((l) => (
+                            <DropdownMenuItem
+                                key={l}
+                                onClick={() => setLocale(l)}
+                                className={locale === l ? 'bg-accent' : ''}
+                            >
+                                {l === 'en' ? 'English' : l === 'vi' ? 'Tiếng Việt' : '한국어'}
+                            </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
 
                 {/* Settings: typography + target language */}
                 <DropdownMenu>
@@ -177,11 +184,10 @@ export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen }: Rea
                         <DropdownMenuLabel className="font-heading">{t.typography}</DropdownMenuLabel>
                         <DropdownMenuSeparator className="my-2" />
                         <div className="space-y-3 py-1">
-                            <StepperRow
+                            <FontSizeRow
                                 label={t.fontSize}
                                 value={prefs.fontSize}
-                                display={`${prefs.fontSize}px`}
-                                min={14} max={28} step={1}
+                                min={10} max={36} step={1}
                                 decreaseLabel={t.decrease(t.fontSize)}
                                 increaseLabel={t.increase(t.fontSize)}
                                 onChange={(v) => updatePrefs({ fontSize: v })}
@@ -202,6 +208,8 @@ export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen }: Rea
                             [
                                 ['eb-garamond', t.fontEbGaramond],
                                 ['merriweather', t.fontMerriweather],
+                                ['montserrat', t.fontMontserrat],
+                                ['public-sans', t.fontPublicSans],
                                 ['system-serif', t.fontSystemSerif],
                             ] as const
                         ).map(([val, label]) => (
@@ -241,6 +249,47 @@ export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen }: Rea
     );
 }
 
+/** Font size row: − | direct number input | + */
+function FontSizeRow({
+    label, value, min, max, step, decreaseLabel, increaseLabel, onChange,
+}: {
+    label: string; value: number;
+    min: number; max: number; step: number;
+    decreaseLabel: string; increaseLabel: string;
+    onChange: (v: number) => void;
+}) {
+    return (
+        <div className="flex items-center justify-between gap-2">
+            <Label className="text-xs shrink-0">{label}</Label>
+            <div className="flex items-center gap-1">
+                <Button
+                    variant="outline" size="sm" className="h-7 w-7 p-0 text-base font-light"
+                    onClick={() => { const n = parseFloat((value - step).toFixed(10)); if (n >= min) onChange(n); }}
+                    disabled={value <= min} aria-label={decreaseLabel}
+                >−</Button>
+                <input
+                    type="number"
+                    value={value}
+                    min={min}
+                    max={max}
+                    step={step}
+                    onChange={(e) => {
+                        const n = parseFloat(e.target.value);
+                        if (!isNaN(n) && n >= min && n <= max) onChange(n);
+                    }}
+                    className="h-7 w-14 text-center text-xs border border-input rounded-sm bg-background tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+                <Button
+                    variant="outline" size="sm" className="h-7 w-7 p-0 text-base font-light"
+                    onClick={() => { const n = parseFloat((value + step).toFixed(10)); if (n <= max) onChange(n); }}
+                    disabled={value >= max} aria-label={increaseLabel}
+                >+</Button>
+            </div>
+        </div>
+    );
+}
+
+/** Line height row keeps the stepper style (decimal values, no direct input needed) */
 function StepperRow({
     label, value, display, min, max, step, decreaseLabel, increaseLabel, onChange,
 }: {

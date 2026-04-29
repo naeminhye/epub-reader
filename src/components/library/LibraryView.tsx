@@ -4,6 +4,7 @@ import { useReaderStore } from '@/stores/readerStore';
 import { BookCard } from './BookCard';
 import { ImportDropZone } from './ImportDropZone';
 import { useT } from '@/lib/i18n/context';
+// import type { Book } from '@/lib/db/schema';
 
 export function LibraryView() {
     const { books, isLoading, loadLibrary, removeBook } = useLibraryStore();
@@ -15,7 +16,10 @@ export function LibraryView() {
     return (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl">
             <header className="mb-8 space-y-1">
-                <h1 className="font-heading text-3xl font-semibold tracking-tight">{t.library}</h1>
+                <div className="flex items-baseline gap-3">
+                    <h1 className="font-heading text-3xl font-semibold tracking-tight">Aurobie</h1>
+                    <span className="text-sm text-muted-foreground font-normal">{t.library}</span>
+                </div>
                 <p className="text-sm text-muted-foreground">
                     {isLoading
                         ? t.libraryLoading

@@ -97,7 +97,7 @@ export function TranslationPanel() {
                             )}
 
                             {result && !isLoading && (
-                                <p className="text-base leading-relaxed" style={{ fontFamily: "'Be Vietnam Pro', system-ui, sans-serif" }}>
+                                <p className="text-base leading-relaxed">
                                     {result.translation}
                                 </p>
                             )}

@@ -27,7 +27,7 @@
  */
 
 .heading {
-    font-family: var(--font-heading);
+  font-family: var(--font-heading);
 }
 
 /* Reading-app specific tokens that don't belong in shadcn's theme.
@@ -35,15 +35,29 @@
  * not to the app chrome.
  */
 :root {
-    --highlight-yellow: oklch(0.92 0.08 90);
-    --highlight-blue: oklch(0.88 0.06 240);
-    --highlight-green: oklch(0.88 0.08 140);
-    --highlight-pink: oklch(0.88 0.06 350);
+  --highlight-yellow: oklch(0.92 0.08 90);
+  --highlight-blue: oklch(0.88 0.06 240);
+  --highlight-green: oklch(0.88 0.08 140);
+  --highlight-pink: oklch(0.88 0.06 350);
 }
 
 .dark {
-    --highlight-yellow: oklch(0.4 0.06 90);
-    --highlight-blue: oklch(0.35 0.05 240);
-    --highlight-green: oklch(0.35 0.06 140);
-    --highlight-pink: oklch(0.35 0.05 350);
+  --highlight-yellow: oklch(0.4 0.06 90);
+  --highlight-blue: oklch(0.35 0.05 240);
+  --highlight-green: oklch(0.35 0.06 140);
+  --highlight-pink: oklch(0.35 0.05 350);
+}
+
+/* App-wide sepia theme — applied to <html> by App.tsx when theme === 'sepia'.
+ * Dark mode is handled by shadcn's built-in 'dark' class.
+ * These override the shadcn neutral tokens to create a warm sepia feel. */
+html.theme-sepia {
+  --background: oklch(0.95 0.02 80);
+  --foreground: oklch(0.25 0.04 55);
+  --muted: oklch(0.88 0.02 75);
+  --muted-foreground: oklch(0.45 0.04 60);
+  --card: oklch(0.93 0.02 78);
+  --border: oklch(0.80 0.03 72);
+  --popover: oklch(0.93 0.02 78);
+  --popover-foreground: oklch(0.25 0.04 55);
 }

@@ -7,7 +7,7 @@
  *   - Merriweather as a screen-optimized serif alternative
  */
 
-@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Be+Vietnam+Pro:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@400;500;600&family=Public+Sans:ital,wght@0,300..800;1,300..700&display=swap');
 
 :root {
   --reader-font-size: 18px;
@@ -74,10 +74,12 @@ body.theme-dark {
   --reader-translation-border: #666;
 }
 
-/* Font variants */
-body.font-eb-garamond { font-family: 'EB Garamond', Georgia, serif; }
+/* Font variants — body class set by applyBodyClasses() */
+body.font-eb-garamond  { font-family: 'EB Garamond', Georgia, serif; font-feature-settings: 'liga' 1, 'onum' 1, 'kern' 1; }
 body.font-merriweather { font-family: 'Merriweather', Georgia, serif; font-feature-settings: 'kern' 1; }
-body.font-system-serif { font-family: Georgia, 'Times New Roman', serif; font-feature-settings: 'kern' 1; }
+body.font-montserrat   { font-family: 'Montserrat', system-ui, sans-serif; font-feature-settings: 'kern' 1; }
+body.font-public-sans  { font-family: 'Public Sans', system-ui, sans-serif; font-feature-settings: 'kern' 1; }
+body.font-system-serif { font-family: Georgia, 'Times New Roman', serif; }
 
 /* Typography */
 p {
@@ -149,10 +151,10 @@ body.theme-dark.mode-tap p:hover {
   padding: 0.75rem 1rem;
   border-left: 3px solid var(--reader-translation-border);
   background: var(--reader-translation-bg);
-  font-family: 'Be Vietnam Pro', 'Inter', system-ui, sans-serif;
+  font-family: inherit;   /* same font as the surrounding book text */
   font-size: 0.92em;
   line-height: 1.65;
-  font-style: normal;
+  font-style: italic;     /* italic distinguishes translation from original when same font */
   border-radius: 0 4px 4px 0;
   cursor: default;
 }

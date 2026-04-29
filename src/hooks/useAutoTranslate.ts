@@ -66,8 +66,9 @@ export function useAutoTranslate({
       h3[data-translation]::after, h4[data-translation]::after {
         content: attr(data-translation);
         display: block;
-        font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+        font-family: inherit;
         font-size: 0.88em;
+        font-style: italic;
         line-height: 1.6;
         opacity: 0.85;
         border-left: 2px solid rgba(128,128,128,0.35);

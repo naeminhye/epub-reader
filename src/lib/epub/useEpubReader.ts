@@ -102,24 +102,32 @@ export function useEpubReader({
 
         const init = async () => {
             try {
-                // Load book if not already loaded
-                if (!bookRef.current) {
-                    const arrayBuffer = await blob.arrayBuffer();
-                    if (cancelled) return;
-                    const book = ePub(arrayBuffer, { openAs: 'binary' });
-                    bookRef.current = book;
-                    await book.ready;
-                    if (cancelled) return;
+                // Always destroy and reload book when flow mode changes to avoid
+                // the `packaging undefined` error — the book object's internal state
+                // is tied to the rendition and cannot be safely reused across renderTo calls.
+                if (bookRef.current) {
+                    try { bookRef.current.destroy(); } catch { /* ignore */ }
+                    bookRef.current = null;
                 }
 
-                const book = bookRef.current!;
+                const arrayBuffer = await blob.arrayBuffer();
+                if (cancelled) return;
 
-                // book.ready does not guarantee book.packaging is populated in all
-                // epubjs versions — explicitly wait for metadata which forces packaging
-                // to resolve before we call renderTo (which internally reads packaging
-                // via injectIdentifier in the content hook).
-                await book.loaded.metadata;
-                if (cancelled) return;;
+                const book = ePub(arrayBuffer, { openAs: 'binary' });
+                bookRef.current = book;
+
+                // Wait for full book parse — both ready AND loaded.metadata must resolve
+                // before calling renderTo, because renderTo's content hook fires injectIdentifier
+                // synchronously which reads book.packaging.
+                await book.ready;
+                if (cancelled) return;
+
+                // Explicitly drain loaded.metadata to guarantee packaging is populated
+                await Promise.all([
+                    book.loaded.metadata,
+                    book.loaded.navigation,
+                ]);
+                if (cancelled) return;
 
                 const rendition = book.renderTo(containerRef.current!, {
                     width: '100%',
@@ -132,8 +140,8 @@ export function useEpubReader({
 
                 // Content hook: runs for EVERY chapter iframe that gets rendered.
                 rendition.hooks.content.register((contents) => {
-                    // Guard: if book was destroyed between hook registration and firing,
-                    // packaging may be undefined — bail out silently.
+                    // Safety guard: packaging should always be defined now since we await
+                    // loaded.metadata before renderTo, but guard anyway for edge cases.
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     if (!(book as any).packaging) return;
 
@@ -209,15 +217,15 @@ export function useEpubReader({
 
         return () => {
             cancelled = true;
-            // Don't destroy the book here — only destroy rendition.
-            // Book is reused when only flow mode changes.
             try { renditionRef.current?.destroy(); } catch { /* ignore */ }
             renditionRef.current = null;
+            // Note: book is destroyed at the start of the next init() call,
+            // not here, so we don't race with in-flight async operations.
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [blob, flowKey]);
 
-    // Destroy book only when blob itself changes
+    // Final cleanup when component unmounts or blob changes
     useEffect(() => {
         return () => {
             try { bookRef.current?.destroy(); } catch { /* ignore */ }
@@ -304,9 +312,11 @@ function applyBodyClasses(body: HTMLElement, prefs: ReadingPrefs) {
     if (!body) return;
     body.classList.remove('theme-light', 'theme-sepia', 'theme-dark');
     body.classList.add(`theme-${prefs.theme}`);
-    body.classList.remove('font-eb-garamond', 'font-merriweather', 'font-system-serif');
+    body.classList.remove(
+        'font-eb-garamond', 'font-merriweather',
+        'font-montserrat', 'font-public-sans', 'font-system-serif'
+    );
     body.classList.add(`font-${prefs.readerFont}`);
-    // Scroll mode class — controls max-width behaviour
     body.classList.toggle('mode-scrolled', prefs.flowMode === 'scrolled');
     body.style.setProperty('--reader-font-size', `${prefs.fontSize}px`);
     body.style.setProperty('--reader-line-height', String(prefs.lineHeight));

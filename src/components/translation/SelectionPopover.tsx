@@ -9,10 +9,11 @@ interface SelectionPopoverProps {
     selection: SelectionInfo | null;
     onTranslate: () => void;
     onDefine: () => void;
+    onStudy: () => void;
     onDismiss: () => void;
 }
 
-const POPOVER_WIDTH = 200;
+const POPOVER_WIDTH = 240;
 const POPOVER_HEIGHT = 44;
 const GAP = 8;
 
@@ -20,6 +21,7 @@ export function SelectionPopover({
     selection,
     onTranslate,
     onDefine,
+    onStudy,
     onDismiss,
 }: SelectionPopoverProps) {
     const t = useT();
@@ -88,6 +90,15 @@ export function SelectionPopover({
                 >
                     <HugeiconsIcon icon={BookOpenIcon} size={14} />
                     <span className="text-xs">{t.define}</span>
+                </Button>
+
+                <Button
+                    variant="ghost" size="sm"
+                    onClick={onStudy}
+                    className="flex-1 h-8 px-2"
+                    title={t.study}
+                >
+                    <span className="text-xs">{t.study}</span>
                 </Button>
 
                 <Button

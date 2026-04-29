@@ -18,6 +18,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useReaderStore } from '@/stores/readerStore';
 import { useLocale, useT } from '@/lib/i18n/context';
+import type { Locale } from '@/lib/i18n/translations';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
     ArrowLeft01Icon,
@@ -34,9 +35,10 @@ interface ReaderToolbarProps {
     toc: NavItem[];
     onGoTo: (href: string) => void;
     onSearchOpen: () => void;
+    onProgressOpen: () => void;
 }
 
-export function ReaderToolbar({ toc, onGoTo, onSearchOpen }: ReaderToolbarProps) {
+export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen }: ReaderToolbarProps) {
     const { currentBook, closeBook, prefs, updatePrefs, progress, pageInfo } = useReaderStore();
     const { locale, setLocale } = useLocale();
     const t = useT();
@@ -81,8 +83,12 @@ export function ReaderToolbar({ toc, onGoTo, onSearchOpen }: ReaderToolbarProps)
                     <HugeiconsIcon icon={SearchIcon} size={16} />
                 </Button>
 
-                {/* Center: title + page position */}
-                <div className="flex-1 min-w-0 px-1 text-center">
+                {/* Center: title + page position + progress tap target */}
+                <div
+                    className="flex-1 min-w-0 px-1 text-center cursor-pointer hover:opacity-70 transition-opacity"
+                    onClick={onProgressOpen}
+                    title={t.readingProgress}
+                >
                     <p className="text-xs text-muted-foreground truncate font-heading">{currentBook.title}</p>
                     {isPaginated && pageInfo && pageInfo.total > 1 && (
                         <p className="text-[11px] text-muted-foreground/60 tabular-nums">
@@ -147,17 +153,20 @@ export function ReaderToolbar({ toc, onGoTo, onSearchOpen }: ReaderToolbarProps)
                     <HugeiconsIcon icon={prefs.theme === 'dark' ? Moon02Icon : Sun01Icon} size={16} />
                 </Button>
 
-                {/* Language toggle */}
+                {/* App language toggle — cycles EN → VI → KO */}
                 <Button
                     variant="ghost" size="sm"
                     className="shrink-0 text-xs font-normal"
                     title={t.language}
-                    onClick={() => setLocale(locale === 'en' ? 'vi' : 'en')}
+                    onClick={() => {
+                        const next: Record<string, Locale> = { en: 'vi', vi: 'ko', ko: 'en' };
+                        setLocale(next[locale] ?? 'en');
+                    }}
                 >
-                    {locale === 'en' ? 'VI' : 'EN'}
+                    {locale.toUpperCase()}
                 </Button>
 
-                {/* Typography settings */}
+                {/* Settings: typography + target language */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" className="shrink-0">
@@ -202,6 +211,19 @@ export function ReaderToolbar({ toc, onGoTo, onSearchOpen }: ReaderToolbarProps)
                                 className={prefs.readerFont === val ? 'bg-accent' : ''}
                             >
                                 {label}
+                            </DropdownMenuItem>
+                        ))}
+                        <DropdownMenuSeparator className="my-2" />
+                        <DropdownMenuLabel className="text-xs text-muted-foreground">{t.targetLanguage}</DropdownMenuLabel>
+                        {(
+                            ['vi', 'en', 'ko', 'zh', 'ja', 'fr', 'de', 'es'] as const
+                        ).map((lang) => (
+                            <DropdownMenuItem
+                                key={lang}
+                                onClick={() => updatePrefs({ targetLang: lang })}
+                                className={prefs.targetLang === lang ? 'bg-accent' : ''}
+                            >
+                                {t.targetLanguageName(lang)}
                             </DropdownMenuItem>
                         ))}
                     </DropdownMenuContent>

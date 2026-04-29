@@ -47,6 +47,7 @@ interface UseEpubReaderReturn {
     goTo: (target: string) => void;
     search: (query: string) => Promise<SearchResult[]>;
     rendition: Rendition | null;
+    totalLocations: number;
 }
 
 export function useEpubReader({
@@ -65,6 +66,7 @@ export function useEpubReader({
     const [isReady, setIsReady] = useState(false);
     const [toc, setToc] = useState<NavItem[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [totalLocations, setTotalLocations] = useState(0);
 
     const onLocationChangeRef = useRef(onLocationChange);
     const onSelectionRef = useRef(onSelection);
@@ -189,7 +191,9 @@ export function useEpubReader({
 
                 await rendition.display(restoreLocation ?? undefined);
 
-                book.locations.generate(1024).catch(() => { });
+                book.locations.generate(1024).then(() => {
+                    if (!cancelled) setTotalLocations(book.locations.length());
+                }).catch(() => { });
 
                 if (!cancelled) setIsReady(true);
             } catch (err) {
@@ -292,6 +296,7 @@ export function useEpubReader({
         goTo,
         search,
         rendition: renditionRef.current,
+        totalLocations,
     };
 }
 

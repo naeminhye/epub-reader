@@ -10,15 +10,17 @@ import { useT } from '@/lib/i18n/context';
 import { toast } from 'sonner';
 
 export function TranslationPanel() {
-    const { isTranslationPanelOpen, setTranslationPanelOpen, selection, currentBook } = useReaderStore();
+    const { isTranslationPanelOpen, setTranslationPanelOpen, selection, currentBook, prefs } = useReaderStore();
     const { translate, result, isLoading, error, reset } = useTranslation();
     const t = useT();
 
+    const targetLang = prefs.targetLang ?? 'vi';
+
     useEffect(() => {
         if (isTranslationPanelOpen && selection?.text) {
-            translate({ text: selection.text, targetLang: 'vi', bookId: currentBook?.id });
+            translate({ text: selection.text, targetLang, bookId: currentBook?.id });
         }
-    }, [isTranslationPanelOpen, selection?.text, currentBook?.id]); // eslint-disable-line
+    }, [isTranslationPanelOpen, selection?.text, currentBook?.id, targetLang]); // eslint-disable-line
 
     useEffect(() => {
         if (!isTranslationPanelOpen) reset();
@@ -40,7 +42,13 @@ export function TranslationPanel() {
                 <SheetHeader className="px-6 py-4 border-b shrink-0">
                     <SheetTitle className="font-heading">{t.translationTitle}</SheetTitle>
                     <SheetDescription className="text-xs">
-                        {result?.cached ? t.fromCache : isLoading ? t.translating : error ? t.translationError : t.vietnamese}
+                        {result?.cached
+                            ? t.fromCache
+                            : isLoading
+                                ? t.translating
+                                : error
+                                    ? t.translationError
+                                    : t.translationLangLabel(targetLang)}
                     </SheetDescription>
                 </SheetHeader>
 
@@ -61,7 +69,7 @@ export function TranslationPanel() {
                         <section>
                             <div className="flex items-center justify-between mb-2">
                                 <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                    {t.vietnamese}
+                                    {t.translationLangLabel(targetLang)}
                                 </h3>
                                 {result && !isLoading && (
                                     <Button variant="ghost" size="sm" onClick={handleCopy} className="h-7 px-2 -mr-2">
@@ -82,7 +90,7 @@ export function TranslationPanel() {
                                 <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 space-y-2">
                                     <p className="text-sm text-destructive">{error}</p>
                                     <Button variant="outline" size="sm" className="h-8"
-                                        onClick={() => selection?.text && translate({ text: selection.text, targetLang: 'vi', bookId: currentBook?.id })}>
+                                        onClick={() => selection?.text && translate({ text: selection.text, targetLang, bookId: currentBook?.id })}>
                                         <span className="text-xs">{t.retry}</span>
                                     </Button>
                                 </div>

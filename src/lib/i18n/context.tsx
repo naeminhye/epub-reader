@@ -9,7 +9,6 @@ interface LocaleContextValue {
     t: Translations;
 }
 
-// Provide a real default so useT() never throws even if called outside the provider
 const DEFAULT_CONTEXT: LocaleContextValue = {
     locale: 'en',
     setLocale: () => { },
@@ -22,10 +21,12 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     const [locale, setLocaleState] = useState<Locale>(() => {
         try {
             const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored === 'en' || stored === 'vi') return stored;
+            if (stored === 'en' || stored === 'vi' || stored === 'ko') return stored;
         } catch { /* ignore */ }
         const lang = navigator.language.toLowerCase();
-        return lang.startsWith('vi') ? 'vi' : 'en';
+        if (lang.startsWith('vi')) return 'vi';
+        if (lang.startsWith('ko')) return 'ko';
+        return 'en';
     });
 
     const setLocale = (l: Locale) => {

@@ -57,6 +57,8 @@ export interface DictionaryCache {
     createdAt: Date;
 }
 
+export type TargetLang = 'vi' | 'en' | 'ko' | 'zh' | 'ja' | 'fr' | 'de' | 'es';
+
 export interface ReadingPrefs {
     id: 'singleton';
     fontSize: number;
@@ -64,12 +66,12 @@ export interface ReadingPrefs {
     theme: 'light' | 'sepia' | 'dark';
     readerFont: 'eb-garamond' | 'merriweather' | 'system-serif';
     translationMode: 'on-demand' | 'auto-tap';
-    targetLang: 'vi';
+    targetLang: TargetLang;
     maxWidthCh: number;
     flowMode: 'paginated' | 'scrolled';
     spread: 'none' | 'auto';
-    autoTranslate: boolean;        // translate entire page on load
-    showOriginal: boolean;         // in auto-translate mode, show original text alongside
+    autoTranslate: boolean;
+    showOriginal: boolean;
 }
 
 export const DEFAULT_PREFS: ReadingPrefs = {
@@ -87,12 +89,22 @@ export const DEFAULT_PREFS: ReadingPrefs = {
     showOriginal: false,
 };
 
+export interface StudyEntry {
+    id: string;
+    bookId: string;
+    bookTitle: string;
+    term: string;
+    note: string;
+    createdAt: Date;
+}
+
 export class EpubReaderDB extends Dexie {
     books!: Table<Book, string>;
     highlights!: Table<Highlight, string>;
     translations!: Table<TranslationCache, string>;
     dictionary!: Table<DictionaryCache, string>;
     prefs!: Table<ReadingPrefs, string>;
+    study!: Table<StudyEntry, string>;
 
     constructor() {
         super('EpubReaderVI');
@@ -105,7 +117,6 @@ export class EpubReaderDB extends Dexie {
             prefs: 'id',
         });
 
-        // Version 2: adds flowMode + spread to prefs (auto-migrated — new fields just default)
         this.version(2).stores({
             books: 'id, title, author, lastReadAt, addedAt',
             highlights: 'id, bookId, cfi, createdAt',
@@ -114,13 +125,32 @@ export class EpubReaderDB extends Dexie {
             prefs: 'id',
         });
 
-        // Version 3: adds autoTranslate + showOriginal to prefs
         this.version(3).stores({
             books: 'id, title, author, lastReadAt, addedAt',
             highlights: 'id, bookId, cfi, createdAt',
             translations: 'key, bookId, createdAt',
             dictionary: 'key, word, createdAt',
             prefs: 'id',
+        });
+
+        // Version 4: adds study table
+        this.version(4).stores({
+            books: 'id, title, author, lastReadAt, addedAt',
+            highlights: 'id, bookId, cfi, createdAt',
+            translations: 'key, bookId, createdAt',
+            dictionary: 'key, word, createdAt',
+            prefs: 'id',
+            study: 'id, bookId, createdAt',
+        });
+
+        // Version 5: targetLang widened to support multiple languages
+        this.version(5).stores({
+            books: 'id, title, author, lastReadAt, addedAt',
+            highlights: 'id, bookId, cfi, createdAt',
+            translations: 'key, bookId, createdAt',
+            dictionary: 'key, word, createdAt',
+            prefs: 'id',
+            study: 'id, bookId, createdAt',
         });
     }
 
@@ -135,6 +165,7 @@ export class EpubReaderDB extends Dexie {
             if (!p.spread) patch.spread = 'none';
             if (p.autoTranslate === undefined) patch.autoTranslate = false;
             if (p.showOriginal === undefined) patch.showOriginal = false;
+            if (!p.targetLang) patch.targetLang = 'vi';
             if (Object.keys(patch).length) {
                 const migrated = { ...prefs, ...patch } as ReadingPrefs;
                 await this.prefs.put(migrated);

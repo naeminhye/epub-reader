@@ -1,16 +1,21 @@
 import { useCallback, useRef, useState } from 'react';
-import { translate } from '@/lib/translation/client';
+import { translate, TranslationError } from '@/lib/translation/client';
 
 export interface AutoTranslateState {
     isTranslating: boolean;
     translatedCount: number;
     totalCount: number;
+    rateLimited: boolean;
+    allModelsFailed: boolean;
+    retryAfterSeconds?: number;
 }
 
 interface UseAutoTranslateOptions {
     enabled: boolean;
     showOriginal: boolean;
+    targetLang: string;
     bookId?: string;
+    onRateLimit?: (retryAfterSeconds?: number) => void;
 }
 
 /**
@@ -20,24 +25,28 @@ interface UseAutoTranslateOptions {
  * paragraphs shifts child indices, invalidating stored CFI positions.
  *
  * Safe approach:
- *  - Set `data-vi="<translation>"` attribute on each <p> — no new nodes inserted
+ *  - Set `data-translation="<translation>"` attribute on each <p> — no new nodes inserted
  *  - Inject a single <style id="epub-auto-translate-styles"> into <head>
- *  - The style uses `p[data-vi]::after { content: attr(data-vi) }` to render
+ *  - The style uses `p[data-translation]::after { content: attr(data-translation) }` to render
  *    translations as CSS pseudo-elements — zero DOM structure change
- *  - showOriginal=false: also inject `p[data-vi] { font-size: 0; ... }` to hide
+ *  - showOriginal=false: also inject `p[data-translation] { font-size: 0; ... }` to hide
  *    original text while keeping the element in the layout (important for epubjs
  *    pagination column height calculations)
- *  - clearTranslations: removes data-vi attributes and the style element
+ *  - clearTranslations: removes data-translation attributes and the style element
  */
 export function useAutoTranslate({
     enabled,
     showOriginal,
+    targetLang,
     bookId,
+    onRateLimit,
 }: UseAutoTranslateOptions) {
     const [state, setState] = useState<AutoTranslateState>({
         isTranslating: false,
         translatedCount: 0,
         totalCount: 0,
+        rateLimited: false,
+        allModelsFailed: false,
     });
 
     const currentDocRef = useRef<Document | null>(null);
@@ -52,10 +61,10 @@ export function useAutoTranslate({
             doc.head.appendChild(style);
         }
         style.textContent = `
-      p[data-vi]::after,
-      h1[data-vi]::after, h2[data-vi]::after,
-      h3[data-vi]::after, h4[data-vi]::after {
-        content: attr(data-vi);
+      p[data-translation]::after,
+      h1[data-translation]::after, h2[data-translation]::after,
+      h3[data-translation]::after, h4[data-translation]::after {
+        content: attr(data-translation);
         display: block;
         font-family: 'Be Vietnam Pro', system-ui, sans-serif;
         font-size: 0.88em;
@@ -67,16 +76,16 @@ export function useAutoTranslate({
         color: inherit;
       }
       ${!show ? `
-      p[data-vi], h1[data-vi], h2[data-vi], h3[data-vi], h4[data-vi] {
+      p[data-translation], h1[data-translation], h2[data-translation], h3[data-translation], h4[data-translation] {
         font-size: 0 !important;
         line-height: 0 !important;
         opacity: 0 !important;
         margin-bottom: 0 !important;
         padding-bottom: 0 !important;
       }
-      p[data-vi]::after,
-      h1[data-vi]::after, h2[data-vi]::after,
-      h3[data-vi]::after, h4[data-vi]::after {
+      p[data-translation]::after,
+      h1[data-translation]::after, h2[data-translation]::after,
+      h3[data-translation]::after, h4[data-translation]::after {
         font-size: 1rem;
         line-height: 1.6;
         opacity: 0.85;
@@ -87,7 +96,7 @@ export function useAutoTranslate({
 
     const clearTranslations = useCallback((doc: Document) => {
         doc.getElementById('epub-auto-translate-styles')?.remove();
-        doc.querySelectorAll('[data-vi]').forEach((el) => el.removeAttribute('data-vi'));
+        doc.querySelectorAll('[data-translation]').forEach((el) => el.removeAttribute('data-translation'));
     }, []);
 
     const translatePage = useCallback(async (doc: Document) => {
@@ -99,7 +108,7 @@ export function useAutoTranslate({
             doc.querySelectorAll('p, h1, h2, h3, h4, h5, h6')
         ).filter(
             (el): el is HTMLElement =>
-                !el.hasAttribute('data-vi') &&
+                !el.hasAttribute('data-translation') &&
                 (el.textContent?.trim().length ?? 0) > 10
         );
 
@@ -108,7 +117,7 @@ export function useAutoTranslate({
         // Inject styles immediately so layout is stable before translations arrive
         injectStyles(doc, showOriginal);
 
-        setState({ isTranslating: true, translatedCount: 0, totalCount: paragraphs.length });
+        setState({ isTranslating: true, translatedCount: 0, totalCount: paragraphs.length, rateLimited: false, allModelsFailed: false });
 
         // Batch: group paragraphs up to ~3000 chars per API request
         const batches: HTMLElement[][] = [];
@@ -135,7 +144,7 @@ export function useAutoTranslate({
             const sourceText = group.map((p) => p.textContent!.trim()).join('\n\n---\n\n');
 
             try {
-                const result = await translate({ text: sourceText, targetLang: 'vi', bookId });
+                const result = await translate({ text: sourceText, targetLang, bookId });
 
                 if (abortRef.current || currentDocRef.current !== doc) break;
 
@@ -144,8 +153,7 @@ export function useAutoTranslate({
                 group.forEach((p, i) => {
                     const text = translated[i]?.trim();
                     if (text) {
-                        // Set as attribute — no new DOM nodes, CFI indices unaffected
-                        p.setAttribute('data-vi', text);
+                        p.setAttribute('data-translation', text);
                     }
                 });
 
@@ -154,8 +162,23 @@ export function useAutoTranslate({
                     isTranslating: done < paragraphs.length,
                     translatedCount: done,
                     totalCount: paragraphs.length,
+                    rateLimited: false,
+                    allModelsFailed: false,
                 });
-            } catch {
+            } catch (err) {
+                if (err instanceof TranslationError && (err.isRateLimited || err.allModelsFailed)) {
+                    setState({
+                        isTranslating: false,
+                        translatedCount: done,
+                        totalCount: paragraphs.length,
+                        rateLimited: err.isRateLimited,
+                        allModelsFailed: err.allModelsFailed,
+                        retryAfterSeconds: err.retryAfterSeconds,
+                    });
+                    onRateLimit?.(err.retryAfterSeconds);
+                    break;
+                }
+                // Non-fatal errors: skip batch silently
                 done += group.length;
             }
         }
@@ -165,13 +188,13 @@ export function useAutoTranslate({
 
     const updateVisibility = useCallback((doc: Document, show: boolean) => {
         // Just re-inject the style block with updated show/hide rules
-        const hasTranslations = doc.querySelector('[data-vi]') !== null;
+        const hasTranslations = doc.querySelector('[data-translation]') !== null;
         if (hasTranslations) injectStyles(doc, show);
     }, [injectStyles]);
 
     const cancel = useCallback(() => {
         abortRef.current = true;
-        setState({ isTranslating: false, translatedCount: 0, totalCount: 0 });
+        setState({ isTranslating: false, translatedCount: 0, totalCount: 0, rateLimited: false, allModelsFailed: false });
     }, []);
 
     return { translatePage, clearTranslations, updateVisibility, cancel, state };

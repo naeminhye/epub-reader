@@ -21,6 +21,15 @@ export function bookStatus(book: Book): 'new' | 'reading' | 'done' {
     return 'new';
 }
 
+export interface Bookmark {
+    id: string;
+    bookId: string;
+    cfi: string;
+    label: string;         // chapter title or first ~60 chars of visible text
+    chapterTitle?: string;
+    createdAt: Date;
+}
+
 export interface Highlight {
     id: string;
     bookId: string;
@@ -71,7 +80,8 @@ export interface ReadingPrefs {
     flowMode: 'paginated' | 'scrolled';
     spread: 'none' | 'auto';
     autoTranslate: boolean;
-    showTranslation: boolean;  // in auto-translate: show injected translation below each paragraph
+    showTranslation: boolean;
+    toolbarVariant: 'persistent' | 'floating';
 }
 
 export const DEFAULT_PREFS: ReadingPrefs = {
@@ -86,7 +96,8 @@ export const DEFAULT_PREFS: ReadingPrefs = {
     flowMode: 'paginated',
     spread: 'none',
     autoTranslate: false,
-    showTranslation: true,   // default: show translation
+    showTranslation: true,
+    toolbarVariant: 'persistent',
 };
 
 export interface StudyEntry {
@@ -105,63 +116,27 @@ export class EpubReaderDB extends Dexie {
     dictionary!: Table<DictionaryCache, string>;
     prefs!: Table<ReadingPrefs, string>;
     study!: Table<StudyEntry, string>;
+    bookmarks!: Table<Bookmark, string>;
 
     constructor() {
         super('EpubReaderVI');
-
-        this.version(1).stores({
-            books: 'id, title, author, lastReadAt, addedAt',
-            highlights: 'id, bookId, cfi, createdAt',
-            translations: 'key, bookId, createdAt',
-            dictionary: 'key, word, createdAt',
-            prefs: 'id',
-        });
-
-        this.version(2).stores({
-            books: 'id, title, author, lastReadAt, addedAt',
-            highlights: 'id, bookId, cfi, createdAt',
-            translations: 'key, bookId, createdAt',
-            dictionary: 'key, word, createdAt',
-            prefs: 'id',
-        });
-
-        this.version(3).stores({
-            books: 'id, title, author, lastReadAt, addedAt',
-            highlights: 'id, bookId, cfi, createdAt',
-            translations: 'key, bookId, createdAt',
-            dictionary: 'key, word, createdAt',
-            prefs: 'id',
-        });
-
-        // Version 4: adds study table
-        this.version(4).stores({
+        const stores = {
             books: 'id, title, author, lastReadAt, addedAt',
             highlights: 'id, bookId, cfi, createdAt',
             translations: 'key, bookId, createdAt',
             dictionary: 'key, word, createdAt',
             prefs: 'id',
             study: 'id, bookId, createdAt',
-        });
-
-        // Version 5: targetLang widened to support multiple languages
-        this.version(5).stores({
-            books: 'id, title, author, lastReadAt, addedAt',
-            highlights: 'id, bookId, cfi, createdAt',
-            translations: 'key, bookId, createdAt',
-            dictionary: 'key, word, createdAt',
-            prefs: 'id',
-            study: 'id, bookId, createdAt',
-        });
-
-        // Version 6: adds Montserrat and Public Sans to readerFont options
-        this.version(6).stores({
-            books: 'id, title, author, lastReadAt, addedAt',
-            highlights: 'id, bookId, cfi, createdAt',
-            translations: 'key, bookId, createdAt',
-            dictionary: 'key, word, createdAt',
-            prefs: 'id',
-            study: 'id, bookId, createdAt',
-        });
+        };
+        this.version(1).stores(stores);
+        this.version(2).stores(stores);
+        this.version(3).stores(stores);
+        this.version(4).stores(stores);
+        this.version(5).stores(stores);
+        this.version(6).stores(stores);
+        this.version(7).stores(stores);
+        // Version 8: adds bookmarks table
+        this.version(8).stores({ ...stores, bookmarks: 'id, bookId, createdAt' });
     }
 
     async getPrefs(): Promise<ReadingPrefs> {
@@ -174,10 +149,12 @@ export class EpubReaderDB extends Dexie {
             if (!p.flowMode) patch.flowMode = 'paginated';
             if (!p.spread) patch.spread = 'none';
             if (p.autoTranslate === undefined) patch.autoTranslate = false;
-            // migrate old showOriginal → showTranslation
-            if (p.showOriginal !== undefined && p.showTranslation === undefined) patch.showTranslation = !p.showOriginal;
             if (p.showTranslation === undefined) patch.showTranslation = true;
             if (!p.targetLang) patch.targetLang = 'vi';
+            if (!p.toolbarVariant) patch.toolbarVariant = 'persistent';
+            // migrate old showOriginal → showTranslation
+            if (p.showOriginal !== undefined && p.showTranslation === undefined)
+                patch.showTranslation = !p.showOriginal;
             if (Object.keys(patch).length) {
                 const migrated = { ...prefs, ...patch } as ReadingPrefs;
                 await this.prefs.put(migrated);

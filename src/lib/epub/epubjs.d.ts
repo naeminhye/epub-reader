@@ -42,6 +42,7 @@ declare module 'epubjs' {
     }
 
     export interface Rendition {
+        currentLocation(): Location | null;
         display(target?: string | number): Promise<void>;
         next(): Promise<void>;
         prev(): Promise<void>;
@@ -66,6 +67,7 @@ declare module 'epubjs' {
         };
         getContents(): Contents[];
         annotations: {
+            highlight(cfi: string, arg1: {}, arg2: () => void, arg3: string, arg4: { fill: string; 'fill-opacity': string; }): unknown;
             add(
                 type: 'highlight' | 'underline' | 'mark',
                 cfiRange: string,
@@ -81,6 +83,7 @@ declare module 'epubjs' {
     }
 
     export interface Book {
+        load: any;
         ready: Promise<void>;
         loaded: {
             navigation: Promise<{ toc: NavItem[] }>;

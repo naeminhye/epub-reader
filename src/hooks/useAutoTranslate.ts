@@ -29,9 +29,6 @@ interface UseAutoTranslateOptions {
  *  - Inject a single <style id="epub-auto-translate-styles"> into <head>
  *  - The style uses `p[data-translation]::after { content: attr(data-translation) }` to render
  *    translations as CSS pseudo-elements — zero DOM structure change
- *  - showOriginal=false: also inject `p[data-translation] { font-size: 0; ... }` to hide
- *    original text while keeping the element in the layout (important for epubjs
- *    pagination column height calculations)
  *  - clearTranslations: removes data-translation attributes and the style element
  */
 export function useAutoTranslate({

@@ -32,7 +32,9 @@ import {
     LayoutTwoColumnIcon,
     LanguageSquareIcon,
     TranslateIcon,
-    TextFontIcon
+    TextFontIcon,
+    BookmarkAddIcon,
+    BookmarkRemoveIcon,
 } from '@hugeicons/core-free-icons';
 import type { NavItem } from 'epubjs';
 
@@ -42,10 +44,13 @@ interface ReaderToolbarProps {
     onSearchOpen: () => void;
     onProgressOpen: () => void;
     onTranslationSettings: () => void;
+    onBookmarksOpen: () => void;
+    isBookmarked: boolean;
+    onToggleBookmark: () => void;
 }
 
-export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen, onTranslationSettings }: ReaderToolbarProps) {
-    const { currentBook, closeBook, prefs, updatePrefs, progress, pageInfo } = useReaderStore();
+export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen, onTranslationSettings, onBookmarksOpen, isBookmarked, onToggleBookmark }: ReaderToolbarProps) {
+    const { currentBook, closeBook, prefs, updatePrefs, progress } = useReaderStore();
     const { locale, setLocale } = useLocale();
     const t = useT();
 
@@ -72,7 +77,7 @@ export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen, onTra
                             <span className="hidden sm:inline text-xs ml-1">{t.contents}</span>
                         </Button>
                     </SheetTrigger>
-                    <SheetContent side="left" className="w-80 sm:w-96 flex flex-col gap-0 p-0">
+                    <SheetContent side="left" className="w-80 sm:w-96 flex flex-col gap-0 p-0" style={{ overflow: 'scroll' }}>
                         <SheetHeader className="px-6 py-4 border-b">
                             <SheetTitle className="font-heading">{t.contents}</SheetTitle>
                         </SheetHeader>
@@ -84,65 +89,66 @@ export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen, onTra
                     </SheetContent>
                 </Sheet>
 
+                {/* Bookmark toggle */}
+                <Button
+                    variant={isBookmarked ? 'secondary' : 'ghost'}
+                    size="sm" className="shrink-0"
+                    title={isBookmarked ? t.bookmarkRemove : t.bookmarkAdd}
+                    onClick={onToggleBookmark}
+                >
+                    <HugeiconsIcon icon={isBookmarked ? BookmarkRemoveIcon : BookmarkAddIcon} size={16} />
+                </Button>
+
                 {/* Search */}
                 <Button variant="ghost" size="sm" className="shrink-0" onClick={onSearchOpen} title={t.search}>
                     <HugeiconsIcon icon={SearchIcon} size={16} />
                 </Button>
 
-                {/* Center: title + page position + progress tap target */}
+                {/* Center: title + page + progress tap target */}
                 <div
                     className="flex-1 min-w-0 px-1 text-center cursor-pointer hover:opacity-70 transition-opacity"
                     onClick={onProgressOpen}
                     title={t.readingProgress}
                 >
                     <p className="text-xs text-muted-foreground truncate font-heading">{currentBook.title}</p>
-                    {isPaginated && pageInfo && pageInfo.total > 1 && (
-                        <p className="text-[11px] text-muted-foreground/60 tabular-nums">
-                            {pageInfo.page} / {pageInfo.total}
-                        </p>
-                    )}
                 </div>
 
-                {/* Translation settings — Languages icon */}
-                <Button
-                    variant="ghost" size="sm"
-                    className="shrink-0"
-                    title={t.translationSettings}
-                    onClick={onTranslationSettings}
-                >
+                {/* Translation settings */}
+                <Button variant="ghost" size="sm" className="shrink-0" title={t.translationSettings} onClick={onTranslationSettings}>
                     <HugeiconsIcon icon={TranslateIcon} />
                 </Button>
 
+                {/* Bookmarks list */}
+                <Button variant="ghost" size="sm" className="shrink-0" title={t.bookmarks} onClick={onBookmarksOpen}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" /></svg>
+                </Button>
+
                 {/* Flow mode toggle */}
-                <Button
-                    variant="ghost" size="sm"
-                    className="shrink-0 text-xs font-normal"
+                <Button variant="ghost" size="sm" className="shrink-0"
                     title={isPaginated ? t.switchToScroll : t.switchToPages}
-                    onClick={() => updatePrefs({ flowMode: isPaginated ? 'scrolled' : 'paginated' })}
-                >
-                    {isPaginated ? <HugeiconsIcon icon={CarouselHorizontalIcon} /> : <HugeiconsIcon icon={CarouselVerticalIcon} />}
+                    onClick={() => updatePrefs({ flowMode: isPaginated ? 'scrolled' : 'paginated' })}>
+                    {isPaginated
+                        ? <HugeiconsIcon icon={CarouselHorizontalIcon} />
+                        : <HugeiconsIcon icon={CarouselVerticalIcon} />}
                 </Button>
 
                 {/* Spread toggle — paginated only */}
                 {isPaginated && (
-                    <Button
-                        variant="ghost" size="sm"
-                        className="shrink-0 text-xs font-normal"
-                        onClick={() => updatePrefs({ spread: isSpread ? 'none' : 'auto' })}
-                    >
-                        {isSpread ? <HugeiconsIcon icon={LayoutTwoColumnIcon} /> : <HugeiconsIcon icon={BorderAll02Icon} />}
+                    <Button variant="ghost" size="sm" className="shrink-0"
+                        onClick={() => updatePrefs({ spread: isSpread ? 'none' : 'auto' })}>
+                        {isSpread
+                            ? <HugeiconsIcon icon={LayoutTwoColumnIcon} />
+                            : <HugeiconsIcon icon={BorderAll02Icon} />}
                     </Button>
                 )}
 
                 {/* Theme toggle */}
-                <Button
-                    variant="ghost" size="sm" className="shrink-0"
+                <Button variant="ghost" size="sm" className="shrink-0"
                     title={t.themeLabel(prefs.theme)}
                     onClick={() => {
                         const next = prefs.theme === 'light' ? 'sepia' : prefs.theme === 'sepia' ? 'dark' : 'light';
                         updatePrefs({ theme: next });
-                    }}
-                >
+                    }}>
                     <HugeiconsIcon icon={prefs.theme === 'dark' ? Moon02Icon : Sun01Icon} size={16} />
                 </Button>
 
@@ -156,18 +162,14 @@ export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen, onTra
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                         {(['en', 'vi', 'ko'] as const).map((l) => (
-                            <DropdownMenuItem
-                                key={l}
-                                onClick={() => setLocale(l)}
-                                className={locale === l ? 'bg-accent' : ''}
-                            >
+                            <DropdownMenuItem key={l} onClick={() => setLocale(l)} className={locale === l ? 'bg-accent' : ''}>
                                 {l === 'en' ? 'English' : l === 'vi' ? 'Tiếng Việt' : '한국어'}
                             </DropdownMenuItem>
                         ))}
                     </DropdownMenuContent>
                 </DropdownMenu>
 
-                {/* Settings: typography + target language */}
+                {/* Settings: typography + target language + toolbar variant */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" className="shrink-0">
@@ -179,16 +181,14 @@ export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen, onTra
                         <DropdownMenuSeparator className="my-2" />
                         <div className="space-y-3 py-1">
                             <FontSizeRow
-                                label={t.fontSize}
-                                value={prefs.fontSize}
+                                label={t.fontSize} value={prefs.fontSize}
                                 min={10} max={36} step={1}
                                 decreaseLabel={t.decrease(t.fontSize)}
                                 increaseLabel={t.increase(t.fontSize)}
                                 onChange={(v) => updatePrefs({ fontSize: v })}
                             />
                             <StepperRow
-                                label={t.lineHeight}
-                                value={prefs.lineHeight}
+                                label={t.lineHeight} value={prefs.lineHeight}
                                 display={prefs.lineHeight.toFixed(1)}
                                 min={1.4} max={2.2} step={0.1}
                                 decreaseLabel={t.decrease(t.lineHeight)}
@@ -198,34 +198,32 @@ export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen, onTra
                         </div>
                         <DropdownMenuSeparator className="my-2" />
                         <DropdownMenuLabel className="text-xs text-muted-foreground">{t.font}</DropdownMenuLabel>
-                        {(
-                            [
-                                ['eb-garamond', t.fontEbGaramond],
-                                ['merriweather', t.fontMerriweather],
-                                ['montserrat', t.fontMontserrat],
-                                ['public-sans', t.fontPublicSans],
-                                ['system-serif', t.fontSystemSerif],
-                            ] as const
-                        ).map(([val, label]) => (
-                            <DropdownMenuItem
-                                key={val}
-                                onClick={() => updatePrefs({ readerFont: val })}
-                                className={prefs.readerFont === val ? 'bg-accent' : ''}
-                            >
+                        {([
+                            ['eb-garamond', t.fontEbGaramond],
+                            ['merriweather', t.fontMerriweather],
+                            ['montserrat', t.fontMontserrat],
+                            ['public-sans', t.fontPublicSans],
+                            ['system-serif', t.fontSystemSerif],
+                        ] as const).map(([val, label]) => (
+                            <DropdownMenuItem key={val} onClick={() => updatePrefs({ readerFont: val })}
+                                className={prefs.readerFont === val ? 'bg-accent' : ''}>
                                 {label}
                             </DropdownMenuItem>
                         ))}
                         <DropdownMenuSeparator className="my-2" />
                         <DropdownMenuLabel className="text-xs text-muted-foreground">{t.targetLanguage}</DropdownMenuLabel>
-                        {(
-                            ['vi', 'en', 'ko', 'zh', 'ja', 'fr', 'de', 'es'] as const
-                        ).map((lang) => (
-                            <DropdownMenuItem
-                                key={lang}
-                                onClick={() => updatePrefs({ targetLang: lang })}
-                                className={prefs.targetLang === lang ? 'bg-accent' : ''}
-                            >
+                        {(['vi', 'en', 'ko', 'zh', 'ja', 'fr', 'de', 'es'] as const).map((lang) => (
+                            <DropdownMenuItem key={lang} onClick={() => updatePrefs({ targetLang: lang })}
+                                className={prefs.targetLang === lang ? 'bg-accent' : ''}>
                                 {t.targetLanguageName(lang)}
+                            </DropdownMenuItem>
+                        ))}
+                        <DropdownMenuSeparator className="my-2" />
+                        <DropdownMenuLabel className="text-xs text-muted-foreground">{t.toolbar}</DropdownMenuLabel>
+                        {(['persistent', 'floating'] as const).map((v) => (
+                            <DropdownMenuItem key={v} onClick={() => updatePrefs({ toolbarVariant: v })}
+                                className={prefs.toolbarVariant === v ? 'bg-accent' : ''}>
+                                {v === 'persistent' ? t.toolbarPersistent : t.toolbarFloating}
                             </DropdownMenuItem>
                         ))}
                     </DropdownMenuContent>
@@ -234,79 +232,50 @@ export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen, onTra
 
             {/* Progress bar */}
             <div className="h-0.5 bg-muted">
-                <div
-                    className="h-full bg-foreground/60 transition-[width] duration-300"
-                    style={{ width: `${Math.round(progress * 100)}%` }}
-                />
+                <div className="h-full bg-foreground/60 transition-[width] duration-300"
+                    style={{ width: `${Math.round(progress * 100)}%` }} />
             </div>
         </header>
     );
 }
 
-/** Font size row: − | direct number input | + */
-function FontSizeRow({
-    label, value, min, max, step, decreaseLabel, increaseLabel, onChange,
-}: {
-    label: string; value: number;
-    min: number; max: number; step: number;
-    decreaseLabel: string; increaseLabel: string;
-    onChange: (v: number) => void;
+function FontSizeRow({ label, value, min, max, step, decreaseLabel, increaseLabel, onChange }: {
+    label: string; value: number; min: number; max: number; step: number;
+    decreaseLabel: string; increaseLabel: string; onChange: (v: number) => void;
 }) {
     return (
         <div className="flex items-center justify-between gap-2">
             <Label className="text-xs shrink-0">{label}</Label>
             <div className="flex items-center gap-1">
-                <Button
-                    variant="outline" size="sm" className="h-7 w-7 p-0 text-base font-light"
+                <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-base font-light"
                     onClick={() => { const n = parseFloat((value - step).toFixed(10)); if (n >= min) onChange(n); }}
-                    disabled={value <= min} aria-label={decreaseLabel}
-                >−</Button>
-                <input
-                    type="number"
-                    value={value}
-                    min={min}
-                    max={max}
-                    step={step}
-                    onChange={(e) => {
-                        const n = parseFloat(e.target.value);
-                        if (!isNaN(n) && n >= min && n <= max) onChange(n);
-                    }}
-                    className="h-7 w-14 text-center text-xs border border-input rounded-sm bg-background tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-                <Button
-                    variant="outline" size="sm" className="h-7 w-7 p-0 text-base font-light"
+                    disabled={value <= min} aria-label={decreaseLabel}>−</Button>
+                <input type="number" value={value} min={min} max={max} step={step}
+                    onChange={(e) => { const n = parseFloat(e.target.value); if (!isNaN(n) && n >= min && n <= max) onChange(n); }}
+                    className="h-7 w-14 text-center text-xs border border-input rounded-sm bg-background tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none focus:ring-1 focus:ring-ring" />
+                <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-base font-light"
                     onClick={() => { const n = parseFloat((value + step).toFixed(10)); if (n <= max) onChange(n); }}
-                    disabled={value >= max} aria-label={increaseLabel}
-                >+</Button>
+                    disabled={value >= max} aria-label={increaseLabel}>+</Button>
             </div>
         </div>
     );
 }
 
-/** Line height row keeps the stepper style (decimal values, no direct input needed) */
-function StepperRow({
-    label, value, display, min, max, step, decreaseLabel, increaseLabel, onChange,
-}: {
-    label: string; value: number; display: string;
-    min: number; max: number; step: number;
-    decreaseLabel: string; increaseLabel: string;
-    onChange: (v: number) => void;
+function StepperRow({ label, value, display, min, max, step, decreaseLabel, increaseLabel, onChange }: {
+    label: string; value: number; display: string; min: number; max: number; step: number;
+    decreaseLabel: string; increaseLabel: string; onChange: (v: number) => void;
 }) {
     return (
         <div className="flex items-center justify-between gap-2">
             <Label className="text-xs shrink-0">{label}</Label>
             <div className="flex items-center gap-1">
-                <Button
-                    variant="outline" size="sm" className="h-7 w-7 p-0 text-base font-light"
+                <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-base font-light"
                     onClick={() => { const n = parseFloat((value - step).toFixed(10)); if (n >= min) onChange(n); }}
-                    disabled={value <= min} aria-label={decreaseLabel}
-                >−</Button>
+                    disabled={value <= min} aria-label={decreaseLabel}>−</Button>
                 <span className="text-xs tabular-nums w-10 text-center select-none">{display}</span>
-                <Button
-                    variant="outline" size="sm" className="h-7 w-7 p-0 text-base font-light"
+                <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-base font-light"
                     onClick={() => { const n = parseFloat((value + step).toFixed(10)); if (n <= max) onChange(n); }}
-                    disabled={value >= max} aria-label={increaseLabel}
-                >+</Button>
+                    disabled={value >= max} aria-label={increaseLabel}>+</Button>
             </div>
         </div>
     );
@@ -318,12 +287,9 @@ function TocList({ items, onSelect, depth = 0 }: { items: NavItem[]; onSelect: (
         <ul className="space-y-0.5">
             {items.map((item) => (
                 <li key={item.id ?? item.href}>
-                    <button
-                        type="button"
-                        onClick={() => onSelect(item.href)}
+                    <button type="button" onClick={() => onSelect(item.href)}
                         className="w-full text-left px-2 py-2 rounded-sm text-sm hover:bg-accent transition-colors flex items-start gap-2"
-                        style={{ paddingLeft: `${0.5 + depth * 1}rem` }}
-                    >
+                        style={{ paddingLeft: `${0.5 + depth * 1}rem` }}>
                         <HugeiconsIcon icon={BookOpenIcon} size={12} className="mt-0.5 shrink-0 text-muted-foreground" />
                         <span className="line-clamp-2 leading-snug">{item.label?.trim()}</span>
                     </button>

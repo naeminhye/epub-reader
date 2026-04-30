@@ -61,6 +61,7 @@ function buildTranslations(raw: RawLocale) {
         prevChapter: raw.prevChapter,
         nextChapter: raw.nextChapter,
         scrollMode: raw.scrollMode,
+        paginatedMode: raw.paginatedMode,
         prev: raw.prev,
         next: raw.next,
         openingBook: raw.openingBook,
@@ -151,6 +152,22 @@ function buildTranslations(raw: RawLocale) {
         errAllModelsFailed: raw.errAllModelsFailed,
         errUnknown: raw.errUnknown,
         errGoToSettings: raw.errGoToSettings,
+        bookmarks: raw.bookmarks,
+        bookmarkEmpty: raw.bookmarkEmpty,
+        toolbarPersistent: raw.toolbarPersistent,
+        toolbar: raw.toolbar,
+        toolbarFloating: raw.toolbarFloating,
+        bookmarkAdd: raw.bookmarkAdd,
+        bookmarkRemove: raw.bookmarkRemove,
+        bookmarkAdded: raw.bookmarkAdded,
+        bookmarkRemoved: raw.bookmarkRemoved,
+        bookmarkLimit: raw.bookmarkLimit,
+        highlights: raw.highlights,
+        highlightAdded: raw.highlightAdded,
+        highlightRemoved: raw.highlightRemoved,
+        highlightEmpty: raw.highlightEmpty,
+        highlightOverlap: raw.highlightOverlap,
+        translationEdited: raw.translationEdited,
 
         // ── Interpolated strings (converted to functions) ───────────────────
         libraryBookCount: (n: number) => interp(raw.libraryBookCount, { n }),
@@ -179,6 +196,7 @@ function buildTranslations(raw: RawLocale) {
         // translationLangLabel — same lookup, same data
         translationLangLabel: (code: string): string =>
             (raw as Record<string, string>)[`targetLanguageName_${code}`] ?? code,
+        locationOfCurrentPage: (page: number, total: number) => interp(raw.locationOfCurrentPage, { page, total }),
     } as const;
 }
 

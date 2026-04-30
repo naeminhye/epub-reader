@@ -100,6 +100,10 @@ export function useEpubReader({
         try { renditionRef.current?.destroy(); } catch { /* ignore */ }
         renditionRef.current = null;
 
+        // Scroll listeners accumulate during init — must be declared here (not inside
+        // the async init fn) so the synchronous cleanup return can access them.
+        const scrollListeners: Array<() => void> = [];
+
         const init = async () => {
             try {
                 // Always destroy and reload book when flow mode changes to avoid
@@ -176,22 +180,90 @@ export function useEpubReader({
 
                 rendition.on('relocated', (location: Location) => {
                     if (!location?.start?.cfi) return;
-                    const progress = book.locations.length()
-                        ? book.locations.percentageFromCfi(location.start.cfi)
-                        : location.start.percentage ?? 0;
+                    const cfi = location.start.cfi;
+
+                    // In scrolled mode 'relocated' fires when the user scrolls into a new
+                    // spine item — the CFI is the START of that chapter, not the scroll
+                    // position within it. We handle scroll-mode progress in the scroll
+                    // listener below; here we only handle paginated mode.
+                    if (prefsRef.current.flowMode === 'scrolled') return;
+
+                    let progress: number;
+                    if (book.locations.length()) {
+                        progress = book.locations.percentageFromCfi(cfi);
+                    } else {
+                        progress = spineProgressFromCfi(cfi, book);
+                    }
+
                     const pageInfo = location.start.displayed ?? { page: 1, total: 1 };
-                    onLocationChangeRef.current?.(location.start.cfi, progress, pageInfo);
+                    onLocationChangeRef.current?.(cfi, progress, pageInfo);
                 });
 
-                // 'rendered' fires every time epubjs renders a spine item into a view
-                // (including pre-rendered adjacent chapters). Re-apply theme here so
-                // background-rendered chapters inherit current prefs.
+                // Scroll-mode progress: listen to iframe scroll events directly.
+                // When the user scrolls, calculate:
+                //   progress = (spineIndex + scrollFraction) / totalSpineItems
+                // where scrollFraction = scrollTop / (scrollHeight - clientHeight).
+                // We throttle at ~250ms to avoid excessive store updates.
+
+                const attachScrollListener = (view: unknown) => {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const doc = (view as any)?.document as Document | undefined;
+                    if (!doc) return;
+
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const section = (view as any)?.section;
+                    const spineIndex: number = section?.index ?? 0;
+
+                    let scrollTimer: ReturnType<typeof setTimeout> | null = null;
+
+                    const onScroll = () => {
+                        if (prefsRef.current.flowMode !== 'scrolled') return;
+                        if (scrollTimer) clearTimeout(scrollTimer);
+                        scrollTimer = setTimeout(() => {
+                            const el = doc.documentElement;
+                            const scrollHeight = el.scrollHeight - el.clientHeight;
+                            const scrollFraction = scrollHeight > 0 ? el.scrollTop / scrollHeight : 0;
+
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            const spine = (book as any).spine;
+                            const totalItems: number = spine?.items?.length ?? spine?.spineItems?.length ?? 1;
+                            const baseProgress = spineIndex / totalItems;
+                            const itemProgress = scrollFraction / totalItems;
+                            const progress = Math.min(baseProgress + itemProgress, 1);
+
+                            // Use the current rendition CFI as the location marker
+                            const cfi = rendition.currentLocation()?.start?.cfi
+                                ?? `epubcfi(/6/${(spineIndex + 1) * 2})`;
+
+                            onLocationChangeRef.current?.(cfi, progress, { page: 1, total: 1 });
+                        }, 250);
+                    };
+
+                    doc.addEventListener('scroll', onScroll, { passive: true });
+                    // Also listen on the root element for some epub layouts
+                    doc.documentElement.addEventListener('scroll', onScroll, { passive: true });
+
+                    const cleanup = () => {
+                        if (scrollTimer) clearTimeout(scrollTimer);
+                        doc.removeEventListener('scroll', onScroll);
+                        doc.documentElement.removeEventListener('scroll', onScroll);
+                    };
+                    scrollListeners.push(cleanup);
+
+                    // Fire once immediately to capture initial position
+                    onScroll();
+                };
+
                 rendition.on('rendered', (_section: unknown, view: unknown) => {
                     try {
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         const doc = (view as any)?.document as Document | undefined;
                         if (doc?.body) applyBodyClasses(doc.body, prefsRef.current);
                     } catch { /* ignore — view may not have a document yet */ }
+
+                    if (prefsRef.current.flowMode === 'scrolled') {
+                        attachScrollListener(view);
+                    }
                 });
 
                 const nav = await book.loaded.navigation;
@@ -199,8 +271,26 @@ export function useEpubReader({
 
                 await rendition.display(restoreLocation ?? undefined);
 
+                // Generate locations in the background.
+                // When done, re-fire onLocationChange with the accurate percentage
+                // so the progress bar updates without the user navigating.
                 book.locations.generate(1024).then(() => {
-                    if (!cancelled) setTotalLocations(book.locations.length());
+                    if (cancelled) return;
+                    setTotalLocations(book.locations.length());
+
+                    // Only re-fire for paginated mode — scroll mode uses the scroll
+                    // listener which already produces accurate progress without locations.
+                    if (prefsRef.current.flowMode !== 'scrolled') {
+                        const currentLocation = rendition.currentLocation() as Location | null;
+                        const cfi = currentLocation?.start?.cfi;
+                        if (cfi) {
+                            const progress = book.locations.percentageFromCfi(cfi);
+                            if (progress > 0) {
+                                const pageInfo = currentLocation.start.displayed ?? { page: 1, total: 1 };
+                                onLocationChangeRef.current?.(cfi, progress, pageInfo);
+                            }
+                        }
+                    }
                 }).catch(() => { });
 
                 if (!cancelled) setIsReady(true);
@@ -217,10 +307,10 @@ export function useEpubReader({
 
         return () => {
             cancelled = true;
+            // Clean up scroll listeners before destroying the rendition
+            scrollListeners.forEach(fn => { try { fn(); } catch { /* ignore */ } });
             try { renditionRef.current?.destroy(); } catch { /* ignore */ }
             renditionRef.current = null;
-            // Note: book is destroyed at the start of the next init() call,
-            // not here, so we don't race with in-flight async operations.
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [blob, flowKey]);
@@ -308,14 +398,7 @@ export function useEpubReader({
                             // eslint-disable-next-line @typescript-eslint/no-explicit-any
                             const section = item as any;
                             // load() fetches and parses the section document
-                            // Book.load is not present on the typed Book, so use a runtime check
-                            const loader = (book as any)?.load;
-                            if (typeof loader === 'function') {
-                                await section.load(loader.bind(book));
-                            } else {
-                                // Fallback: call load without args if the loader isn't available on the book object
-                                await section.load();
-                            }
+                            await section.load(book.load.bind(book));
                             // find() returns [{cfi, excerpt}]
                             const found: Array<{ cfi: string; excerpt: string }> = section.find(q) ?? [];
                             section.unload?.();
@@ -411,4 +494,52 @@ function bindSelection(
     doc.addEventListener('mouseup', handler);
     doc.addEventListener('touchend', handler);
     doc.addEventListener('mousedown', clearHandler);
+}
+
+/**
+ * Calculate approximate reading progress from a CFI when book.locations is not
+ * yet populated (i.e. locations.generate() hasn't finished).
+ *
+ * Strategy: parse the spine item index out of the CFI and use it relative to
+ * the total spine item count, then add a fractional offset from the character
+ * position within that item.
+ *
+ * A CFI looks like: epubcfi(/6/30!/4/2/62/2/1:297)
+ *   - /6/30  → package spine, item at position 30 (1-indexed, even numbers only)
+ *   - !/4/2/62/2/1:297 → within that item's document
+ *
+ * Spine items in the CFI use 1-indexed even numbers (2, 4, 6, ...) so
+ * spineIndex = (number / 2) - 1.
+ */
+function spineProgressFromCfi(cfi: string, book: import('epubjs').Book): number {
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const spine = (book as any).spine;
+        const totalItems: number = spine?.items?.length ?? spine?.spineItems?.length ?? 0;
+        if (totalItems === 0) return 0;
+
+        // Extract the spine step: the number after /6/ in the outer path
+        // epubcfi(/6/N[idref]!...) — N is always an even integer
+        const spineMatch = cfi.match(/^epubcfi\(\/6\/(\d+)/);
+        if (!spineMatch) return 0;
+
+        const spineStep = parseInt(spineMatch[1], 10);
+        const spineIndex = Math.max(0, (spineStep / 2) - 1);   // convert to 0-based index
+
+        // Extract character offset from the deepest :N in the CFI
+        const charMatch = cfi.match(/:(\d+)\)?$/);
+        const charOffset = charMatch ? parseInt(charMatch[1], 10) : 0;
+
+        // Get the rough size of this spine item to calculate intra-chapter progress.
+        // Use the item's `linear` property and fall back to 0 if unavailable.
+        const item = spine?.items?.[spineIndex] ?? spine?.spineItems?.[spineIndex];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const itemLength: number = (item as any)?.length ?? 2048; // 2048 chars as rough default
+        const intraChapter = Math.min(charOffset / Math.max(itemLength, 1), 1);
+
+        // Progress = (spineIndex + intraChapter) / totalItems
+        return Math.min((spineIndex + intraChapter) / totalItems, 1);
+    } catch {
+        return 0;
+    }
 }

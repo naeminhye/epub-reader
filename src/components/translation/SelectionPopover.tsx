@@ -2,18 +2,27 @@ import { useLayoutEffect, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { useT } from '@/lib/i18n/context';
-import { BookBookmark02Icon, BookOpenIcon, Cancel01Icon, TranslateIcon } from '@hugeicons/core-free-icons';
+import { BookOpenIcon, Cancel01Icon, TranslateIcon, BookBookmark02Icon, HighlighterIcon } from '@hugeicons/core-free-icons';
 import type { SelectionInfo } from '@/lib/epub/useEpubReader';
+import type { HighlightColor } from '@/hooks/useHighlights';
 
 interface SelectionPopoverProps {
     selection: SelectionInfo | null;
     onTranslate: () => void;
     onDefine: () => void;
     onStudy: () => void;
+    onHighlight: (color: HighlightColor) => void;
     onDismiss: () => void;
 }
 
-const POPOVER_WIDTH = 280;
+const HIGHLIGHT_COLORS: { color: HighlightColor; bg: string; label: string }[] = [
+    { color: 'yellow', bg: 'rgba(255,220,0,0.7)', label: 'Yellow' },
+    { color: 'green', bg: 'rgba(163,230,53,0.7)', label: 'Green' },
+    { color: 'blue', bg: 'rgba(96,165,250,0.7)', label: 'Blue' },
+    { color: 'pink', bg: 'rgba(244,114,182,0.7)', label: 'Pink' },
+];
+
+const POPOVER_WIDTH = 300;
 const POPOVER_HEIGHT = 44;
 const GAP = 8;
 
@@ -22,14 +31,16 @@ export function SelectionPopover({
     onTranslate,
     onDefine,
     onStudy,
+    onHighlight,
     onDismiss,
 }: SelectionPopoverProps) {
     const t = useT();
     const popoverRef = useRef<HTMLDivElement>(null);
     const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+    const [showColors, setShowColors] = useState(false);
 
     useLayoutEffect(() => {
-        if (!selection) { setPosition(null); return; }
+        if (!selection) { setPosition(null); setShowColors(false); return; }
         const { rect } = selection;
         const viewportW = window.innerWidth;
         const viewportH = window.innerHeight;
@@ -64,59 +75,79 @@ export function SelectionPopover({
                 }}
                 aria-hidden="true"
             />
-
             <div
                 ref={popoverRef}
                 role="toolbar"
                 aria-label={t.selectionActions}
-                className="fixed z-[70] flex items-center gap-0.5 px-1 rounded-md border bg-popover text-popover-foreground shadow-lg animate-in fade-in-0 zoom-in-95 duration-150"
-                style={{ top: position.top, left: position.left, height: POPOVER_HEIGHT, width: `fit-content` }}
+                className="fixed z-[70] flex flex-col rounded-lg border bg-popover text-popover-foreground shadow-lg animate-in fade-in-0 zoom-in-95 duration-150 overflow-hidden"
+                style={{ top: position.top, left: position.left, width: 'fit-content' }}
                 onMouseDown={(e) => e.preventDefault()}
             >
-                <Button
-                    variant="ghost" size="sm"
-                    onClick={onTranslate}
-                    className="flex-1 h-8 gap-1.5 px-2"
-                    title={t.translateTitle}
-                >
-                    <HugeiconsIcon icon={TranslateIcon} />
-                    <span className="text-xs">{t.translate}</span>
-                </Button>
+                {/* Main row */}
+                <div className="flex items-center gap-0.5 px-1" style={{ height: POPOVER_HEIGHT }}>
+                    <Button variant="ghost" size="sm" onClick={onTranslate} className="flex-1 h-8 gap-1.5 px-2" title={t.translateTitle}>
+                        <HugeiconsIcon icon={TranslateIcon} size={13} />
+                        <span className="text-xs">{t.translate}</span>
+                    </Button>
 
-                <Button
-                    variant="ghost" size="sm"
-                    onClick={onDefine}
-                    className="flex-1 h-8 gap-1.5 px-2"
-                    title={t.defineTitle}
-                >
-                    <HugeiconsIcon icon={BookOpenIcon} size={14} />
-                    <span className="text-xs">{t.define}</span>
-                </Button>
+                    <Button variant="ghost" size="sm" onClick={onDefine} className="flex-1 h-8 gap-1.5 px-2" title={t.defineTitle}>
+                        <HugeiconsIcon icon={BookOpenIcon} size={13} />
+                        <span className="text-xs">{t.define}</span>
+                    </Button>
 
-                <Button
-                    variant="ghost" size="sm"
-                    onClick={onStudy}
-                    className="flex-1 h-8 px-2"
-                    title={t.study}
-                >
-                    <HugeiconsIcon icon={BookBookmark02Icon} />
-                    <span className="text-xs">{t.study}</span>
-                </Button>
+                    <Button variant="ghost" size="sm" onClick={onStudy} className="flex-1 h-8 px-2" title={t.study}>
+                        <HugeiconsIcon icon={BookBookmark02Icon} size={13} />
+                        <span className="text-xs">{t.study}</span>
+                    </Button>
 
-                <Button
-                    variant="ghost" size="sm"
-                    onClick={onDismiss}
-                    className="h-8 w-8 p-0 shrink-0"
-                    title={t.close}
-                >
-                    <HugeiconsIcon icon={Cancel01Icon} size={14} />
-                </Button>
+                    {/* Highlight toggle */}
+                    <Button
+                        variant={showColors ? 'secondary' : 'ghost'}
+                        size="sm"
+                        onClick={() => setShowColors(s => !s)}
+                        className="flex-1 h-8 px-2"
+                        title={t.highlight}
+                    ><HugeiconsIcon icon={HighlighterIcon} size={13} />
+                        <span className="text-xs">{t.highlight}</span>
+                    </Button>
 
-                {/* Arrow indicator */}
+                    <Button variant="ghost" size="sm" onClick={onDismiss} className="h-8 w-8 p-0 shrink-0" title={t.close}>
+                        <HugeiconsIcon icon={Cancel01Icon} size={14} />
+                    </Button>
+                </div>
+
+                {/* Color picker row */}
+                {showColors && (
+                    <div className="flex items-center justify-center gap-3 px-3 pb-2.5 pt-1 border-t">
+                        {HIGHLIGHT_COLORS.map(({ color, bg, label }) => (
+                            <button
+                                key={color}
+                                type="button"
+                                title={label}
+                                onClick={() => { onHighlight(color); setShowColors(false); onDismiss(); }}
+                                style={{
+                                    width: 24, height: 24, borderRadius: '50%',
+                                    background: bg,
+                                    border: '2px solid transparent',
+                                    cursor: 'pointer',
+                                    transition: 'transform .15s, border-color .15s',
+                                }}
+                                onMouseEnter={e => {
+                                    (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.25)';
+                                    (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--ink)';
+                                }}
+                                onMouseLeave={e => {
+                                    (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
+                                    (e.currentTarget as HTMLButtonElement).style.borderColor = 'transparent';
+                                }}
+                            />
+                        ))}
+                    </div>
+                )}
+
+                {/* Arrow */}
                 <div
-                    className={`absolute left-1/2 -translate-x-1/2 w-0 h-0 border-x-[6px] border-x-transparent ${isAbove
-                        ? 'top-full border-t-[6px] border-t-border'
-                        : 'bottom-full border-b-[6px] border-b-border'
+                    className={`absolute left-1/2 -translate-x-1/2 w-0 h-0 border-x-[6px] border-x-transparent ${isAbove ? 'top-full border-t-[6px] border-t-border' : 'bottom-full border-b-[6px] border-b-border'
                         }`}
                     aria-hidden="true"
                 />

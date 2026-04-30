@@ -13,7 +13,7 @@ interface SelectionPopoverProps {
     onDismiss: () => void;
 }
 
-const POPOVER_WIDTH = 240;
+const POPOVER_WIDTH = 280;
 const POPOVER_HEIGHT = 44;
 const GAP = 8;
 
@@ -70,7 +70,7 @@ export function SelectionPopover({
                 role="toolbar"
                 aria-label={t.selectionActions}
                 className="fixed z-[70] flex items-center gap-0.5 px-1 rounded-md border bg-popover text-popover-foreground shadow-lg animate-in fade-in-0 zoom-in-95 duration-150"
-                style={{ top: position.top, left: position.left, height: POPOVER_HEIGHT, width: POPOVER_WIDTH }}
+                style={{ top: position.top, left: position.left, height: POPOVER_HEIGHT, width: `fit-content` }}
                 onMouseDown={(e) => e.preventDefault()}
             >
                 <Button

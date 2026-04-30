@@ -12,7 +12,7 @@ export interface AutoTranslateState {
 
 interface UseAutoTranslateOptions {
     enabled: boolean;
-    showOriginal: boolean;
+    showTranslation: boolean;
     targetLang: string;
     bookId?: string;
     onRateLimit?: (retryAfterSeconds?: number) => void;
@@ -36,7 +36,7 @@ interface UseAutoTranslateOptions {
  */
 export function useAutoTranslate({
     enabled,
-    showOriginal,
+    showTranslation,
     targetLang,
     bookId,
     onRateLimit,
@@ -116,7 +116,7 @@ export function useAutoTranslate({
         if (paragraphs.length === 0) return;
 
         // Inject styles immediately so layout is stable before translations arrive
-        injectStyles(doc, showOriginal);
+        injectStyles(doc, showTranslation);
 
         setState({ isTranslating: true, translatedCount: 0, totalCount: paragraphs.length, rateLimited: false, allModelsFailed: false });
 
@@ -185,7 +185,7 @@ export function useAutoTranslate({
         }
 
         setState((s) => ({ ...s, isTranslating: false }));
-    }, [enabled, showOriginal, bookId, injectStyles]);
+    }, [enabled, showTranslation, bookId, injectStyles]);
 
     const updateVisibility = useCallback((doc: Document, show: boolean) => {
         // Just re-inject the style block with updated show/hide rules

@@ -45,23 +45,9 @@ export function ReaderView() {
         totalLocations,
     } = useReaderStore();
 
-    // const { translatePage, clearTranslations, updateVisibility, cancel, state: autoState } = useAutoTranslate({
-    //     enabled: prefs.autoTranslate,
-    //     showTranslation: prefs.showTranslation,
-    //     targetLang: prefs.targetLang ?? 'vi',
-    //     bookId: currentBook?.id,
-    //     onRateLimit: useCallback((retryAfterSeconds?: number) => {
-    //         updatePrefs({ autoTranslate: false });
-    //         const msg = retryAfterSeconds
-    //             ? t.rateLimitedWithTime(retryAfterSeconds)
-    //             : t.rateLimited;
-    //         toast.warning(msg, { duration: 8000 });
-    //     }, [updatePrefs, t]),
-    // });
-
     const { translatePage, clearTranslations, updateVisibility, cancel, state: autoState } = useAutoTranslate({
         enabled: prefs.autoTranslate,
-        showOriginal: !prefs.showTranslation, // changed — hook expects "showOriginal"
+        showTranslation: prefs.showTranslation,
         targetLang: prefs.targetLang ?? 'vi',
         bookId: currentBook?.id,
         onRateLimit: useCallback((retryAfterSeconds?: number) => {

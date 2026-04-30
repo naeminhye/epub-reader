@@ -8,6 +8,9 @@ import { useHighlights } from '@/hooks/useHighlights';
 import type { HighlightColor } from '@/hooks/useHighlights';
 import { ReaderToolbar } from './ReaderToolbar';
 import { AnnotationsPanel } from './AnnotationsPanel';
+import { PdfReaderView } from './PdfReaderView';
+import { CbzReaderView } from './CbzReaderView';
+import { TxtReaderView } from './TxtReaderView';
 import { SearchPanel } from './SearchPanel';
 import { ReadingProgressPanel } from './ReadingProgressPanel';
 import { StudyPanel } from './StudyPanel';
@@ -78,7 +81,7 @@ export function ReaderView() {
     );
 
     const { isReady, toc, error, next, prev, goTo, search, rendition, totalLocations: locs } = useEpubReader({
-        blob: currentBook?.epubBlob ?? null,
+        blob: (currentBook?.format === 'epub' || !currentBook?.format) ? (currentBook?.fileBlob ?? null) : null,
         containerRef,
         initialLocation: currentLocation,
         prefs,
@@ -216,9 +219,15 @@ export function ReaderView() {
 
     if (!currentBook) return null;
 
+    const format = currentBook.format ?? 'epub';
     const isPaginated = prefs.flowMode === 'paginated';
     const showNav = isReady && !selection && !isTranslationPanelOpen;
     const currentlyBookmarked = currentCfi ? isBookmarked(currentCfi) : false;
+
+    // Page/progress change handler for non-epub formats
+    const handleNonEpubPageChange = (page: number, total: number, progress: number) => {
+        setLocation(`page:${page}`, progress, { page, total });
+    };
 
     const toolbarEl = (
         <ReaderToolbar
@@ -263,7 +272,7 @@ export function ReaderView() {
                 </div>
             )}
 
-            <main className="flex-1 relative overflow-hidden" onClick={isFloating ? wakeChrome : undefined}>
+            <main className="flex-1 relative overflow-hidden flex flex-col min-h-0" onClick={isFloating ? wakeChrome : undefined}>
                 {/* Floating toolbar */}
                 {isFloating && (
                     <div style={{
@@ -286,48 +295,77 @@ export function ReaderView() {
                     </div>
                 )}
 
-                <div ref={containerRef} className="absolute inset-0" />
-
-                {/* Loading */}
-                {!isReady && !error && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ background: 'var(--paper)' }}>
-                        <div className="text-center space-y-3">
-                            <div className="w-8 h-8 border-2 rounded-full animate-spin mx-auto" style={{ borderColor: 'var(--line-2)', borderTopColor: 'var(--ink-3)' }} />
-                            <p style={{ fontFamily: 'var(--serif)', fontSize: 15, fontStyle: 'italic', color: 'var(--ink-3)' }}>{t.openingBook}</p>
-                        </div>
-                    </div>
+                {/* Non-EPUB formats render their own content area */}
+                {format === 'pdf' && (
+                    <PdfReaderView
+                        fileBlob={currentBook.fileBlob}
+                        initialPage={currentLocation?.startsWith('page:') ? parseInt(currentLocation.slice(5)) : 1}
+                        isFloating={isFloating}
+                        showChrome={showChrome}
+                        onPageChange={handleNonEpubPageChange}
+                    />
+                )}
+                {format === 'cbz' && (
+                    <CbzReaderView
+                        fileBlob={currentBook.fileBlob}
+                        initialPage={currentLocation?.startsWith('page:') ? parseInt(currentLocation.slice(5)) : 1}
+                        onPageChange={handleNonEpubPageChange}
+                    />
+                )}
+                {format === 'txt' && (
+                    <TxtReaderView
+                        fileBlob={currentBook.fileBlob}
+                        onProgressChange={(progress) => setLocation('txt:scroll', progress, { page: 1, total: 1 })}
+                    />
                 )}
 
-                {/* Error */}
-                {error && (
-                    <div className="absolute inset-0 flex items-center justify-center p-8" style={{ background: 'var(--paper)' }}>
-                        <div className="text-center max-w-md space-y-3">
-                            <p style={{ fontFamily: 'var(--serif)', fontSize: 22, fontStyle: 'italic', color: 'var(--ink)' }}>{t.couldNotOpen}</p>
-                            <p style={{ fontSize: 13, color: 'var(--ink-3)' }}>{error}</p>
-                            <p style={{ fontSize: 12, color: 'var(--ink-4)' }}>{t.epubCorrupted}</p>
-                        </div>
-                    </div>
-                )}
-
-                {/* Page nav arrows */}
-                {isReady && isPaginated && showNav && (
+                {/* EPUB render target — only mounted for epub format */}
+                {(format === 'epub' || !format) && (
                     <>
-                        <button type="button" aria-label={t.prevPage} onClick={prev}
-                            className="absolute left-0 top-0 bottom-0 w-12 z-10 flex items-center justify-center opacity-0 hover:opacity-100 active:opacity-100 transition-opacity"
-                            style={{ background: 'linear-gradient(to right, color-mix(in oklch, var(--paper) 40%, transparent), transparent)' }}>
-                            <HugeiconsIcon icon={ArrowLeft01Icon} size={22} style={{ color: 'var(--ink-3)' }} />
-                        </button>
-                        <button type="button" aria-label={t.nextPage} onClick={next}
-                            className="absolute right-0 top-0 bottom-0 w-12 z-10 flex items-center justify-center opacity-0 hover:opacity-100 active:opacity-100 transition-opacity"
-                            style={{ background: 'linear-gradient(to left, color-mix(in oklch, var(--paper) 40%, transparent), transparent)' }}>
-                            <HugeiconsIcon icon={ArrowRight01Icon} size={22} style={{ color: 'var(--ink-3)' }} />
-                        </button>
+                        <div ref={containerRef} className="absolute inset-0" />
+
+                        {/* Loading */}
+                        {!isReady && !error && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ background: 'var(--paper)' }}>
+                                <div className="text-center space-y-3">
+                                    <div className="w-8 h-8 border-2 rounded-full animate-spin mx-auto" style={{ borderColor: 'var(--line-2)', borderTopColor: 'var(--ink-3)' }} />
+                                    <p style={{ fontFamily: 'var(--serif)', fontSize: 15, fontStyle: 'italic', color: 'var(--ink-3)' }}>{t.openingBook}</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Error */}
+                        {error && (
+                            <div className="absolute inset-0 flex items-center justify-center p-8" style={{ background: 'var(--paper)' }}>
+                                <div className="text-center max-w-md space-y-3">
+                                    <p style={{ fontFamily: 'var(--serif)', fontSize: 22, fontStyle: 'italic', color: 'var(--ink)' }}>{t.couldNotOpen}</p>
+                                    <p style={{ fontSize: 13, color: 'var(--ink-3)' }}>{error}</p>
+                                    <p style={{ fontSize: 12, color: 'var(--ink-4)' }}>{t.epubCorrupted}</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Page nav arrows */}
+                        {isReady && isPaginated && showNav && (
+                            <>
+                                <button type="button" aria-label={t.prevPage} onClick={prev}
+                                    className="absolute left-0 top-0 bottom-0 w-12 z-10 flex items-center justify-center opacity-0 hover:opacity-100 active:opacity-100 transition-opacity"
+                                    style={{ background: 'linear-gradient(to right, color-mix(in oklch, var(--paper) 40%, transparent), transparent)' }}>
+                                    <HugeiconsIcon icon={ArrowLeft01Icon} size={22} style={{ color: 'var(--ink-3)' }} />
+                                </button>
+                                <button type="button" aria-label={t.nextPage} onClick={next}
+                                    className="absolute right-0 top-0 bottom-0 w-12 z-10 flex items-center justify-center opacity-0 hover:opacity-100 active:opacity-100 transition-opacity"
+                                    style={{ background: 'linear-gradient(to left, color-mix(in oklch, var(--paper) 40%, transparent), transparent)' }}>
+                                    <HugeiconsIcon icon={ArrowRight01Icon} size={22} style={{ color: 'var(--ink-3)' }} />
+                                </button>
+                            </>
+                        )}
                     </>
                 )}
             </main>
 
-            {/* ── Footers ── */}
-            {!isFloating && isReady && showNav && (
+            {/* ── Footers (EPUB only) ── */}
+            {(format === 'epub' || !format) && !isFloating && isReady && showNav && (
                 <div className="hidden sm:flex items-center justify-center gap-4 py-2 border-t shrink-0" style={{ background: 'var(--paper)', borderColor: 'var(--line)' }}>
                     <Button variant="ghost" size="sm" onClick={prev} className="h-8 px-4 gap-1.5 text-xs">
                         <HugeiconsIcon icon={ArrowLeft01Icon} size={14} />{t.prev}
@@ -343,7 +381,7 @@ export function ReaderView() {
                 </div>
             )}
 
-            {isFloating && isReady && (
+            {(format === 'epub' || !format) && isFloating && isReady && (
                 <FloatingNavBar visible={showChrome} prev={prev} next={next} pageInfo={pageInfo} isPaginated={isPaginated} />
             )}
 

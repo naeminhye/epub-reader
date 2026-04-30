@@ -1,7 +1,8 @@
 import { create } from 'zustand';
-import type { Book } from '@/lib/db/schema';
+import type { Book, BookFormat } from '@/lib/db/schema';
 import { bookRepo } from '@/lib/db/bookRepo';
 import { extractEpubMetadata } from '@/lib/epub/metadata';
+import { extractPdfMetadata, extractCbzMetadata, extractTxtMetadata } from '@/lib/epub/formatMetadata';
 
 interface LibraryState {
     books: Book[];
@@ -10,11 +11,29 @@ interface LibraryState {
     importError: string | null;
 
     loadLibrary: () => Promise<void>;
+    importBook: (file: File) => Promise<Book | null>;
+    /** @deprecated use importBook */
     importEpub: (file: File) => Promise<Book | null>;
     removeBook: (id: string) => Promise<void>;
 }
 
-export const useLibraryStore = create<LibraryState>((set) => ({
+const SUPPORTED: Record<string, BookFormat> = {
+    '.epub': 'epub',
+    '.pdf': 'pdf',
+    '.cbz': 'cbz',
+    '.txt': 'txt',
+    '.md': 'txt',
+    '.text': 'txt',
+};
+
+const MAX_SIZE = 500 * 1024 * 1024; // 500 MB
+
+function detectFormat(file: File): BookFormat | null {
+    const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+    return SUPPORTED[ext] ?? null;
+}
+
+export const useLibraryStore = create<LibraryState>((set, get) => ({
     books: [],
     isLoading: false,
     isImporting: false,
@@ -31,44 +50,37 @@ export const useLibraryStore = create<LibraryState>((set) => ({
         }
     },
 
-    importEpub: async (file) => {
+    importBook: async (file) => {
         set({ isImporting: true, importError: null });
         try {
-            // Validate extension
-            if (!file.name.toLowerCase().endsWith('.epub')) {
-                throw new Error('Please select a .epub file');
-            }
+            const format = detectFormat(file);
+            if (!format) throw new Error(`Unsupported file type. Supported: EPUB, PDF, CBZ, TXT, MD`);
+            if (file.size > MAX_SIZE) throw new Error('File too large (max 500 MB)');
 
-            // Validate size (sanity cap at 200MB)
-            if (file.size > 200 * 1024 * 1024) {
-                throw new Error('File too large (max 200MB)');
-            }
+            // Extract metadata based on format
+            const meta = format === 'epub' ? await extractEpubMetadata(file)
+                : format === 'pdf' ? await extractPdfMetadata(file)
+                    : format === 'cbz' ? await extractCbzMetadata(file)
+                        : await extractTxtMetadata(file);
 
-            // Extract metadata
-            const meta = await extractEpubMetadata(file);
-
-            // Check for duplicate
+            // Deduplicate
             const exists = await bookRepo.exists(meta.title, meta.author);
-            if (exists) {
-                throw new Error(`"${meta.title}" by ${meta.author} is already in your library`);
-            }
+            if (exists) throw new Error(`"${meta.title}" is already in your library`);
 
-            // Build book record
             const book: Book = {
                 id: crypto.randomUUID(),
                 title: meta.title,
                 author: meta.author,
                 language: meta.language,
                 coverBlob: meta.coverBlob,
-                epubBlob: file,
+                fileBlob: file,
+                format,
                 fileSize: file.size,
                 addedAt: new Date(),
                 progress: 0,
             };
 
             await bookRepo.add(book);
-
-            // Refresh library
             const books = await bookRepo.list();
             set({ books, isImporting: false });
             return book;
@@ -77,6 +89,12 @@ export const useLibraryStore = create<LibraryState>((set) => ({
             set({ importError: message, isImporting: false });
             return null;
         }
+    },
+
+    // Backwards compat — some components still call importEpub
+    importEpub: async (file) => {
+        const { importBook } = get();
+        return importBook(file);
     },
 
     removeBook: async (id) => {

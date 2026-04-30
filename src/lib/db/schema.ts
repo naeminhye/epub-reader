@@ -1,12 +1,15 @@
 import Dexie, { type Table } from 'dexie';
 
+export type BookFormat = 'epub' | 'pdf' | 'cbz' | 'txt';
+
 export interface Book {
     id: string;
     title: string;
     author: string;
     language?: string;
     coverBlob?: Blob;
-    epubBlob: Blob;
+    fileBlob: Blob;       // renamed from epubBlob — holds any format's raw file
+    format: BookFormat;
     fileSize: number;
     addedAt: Date;
     lastReadAt?: Date;
@@ -137,6 +140,15 @@ export class EpubReaderDB extends Dexie {
         this.version(7).stores(stores);
         // Version 8: adds bookmarks table
         this.version(8).stores({ ...stores, bookmarks: 'id, bookId, createdAt' });
+        // Version 9: renames epubBlob→fileBlob, adds format field
+        this.version(9).stores({ ...stores, bookmarks: 'id, bookId, createdAt' })
+            .upgrade(tx => tx.table('books').toCollection().modify((book: Record<string, unknown>) => {
+                if (book.epubBlob && !book.fileBlob) {
+                    book.fileBlob = book.epubBlob;
+                    delete book.epubBlob;
+                }
+                if (!book.format) book.format = 'epub';
+            }));
     }
 
     async getPrefs(): Promise<ReadingPrefs> {

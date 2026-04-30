@@ -106,7 +106,8 @@ npm run dev
 - Resume from last location on reopen
 
 ### Translation
-- **On-demand**: select text → popover → Translate → side panel with Vietnamese translation
+- Allow users to choose target language for translation: Vietnamese, English, Korean, Chinese, ...
+- **On-demand**: select text → popover → Translate → side panel with target language translation
 - **Auto-translate**: translates entire page on load using CSS pseudo-elements (zero DOM structure changes — CFI locations unaffected)
 - Show/hide original text toggle in auto-translate mode
 - Translation caching in IndexedDB (cached requests are instant, no API quota used)
@@ -133,7 +134,7 @@ npm run dev
 - Updates live as you read; page/time estimates improve after `book.locations.generate()` completes in the background
 
 ### i18n
-- English / Vietnamese UI toggle (persistent via localStorage)
+- English / Vietnamese / Korean UI toggle (persistent via localStorage)
 - Auto-detects browser language on first visit
 - Toggle button in the reader toolbar
 

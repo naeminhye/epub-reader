@@ -71,7 +71,7 @@ export interface ReadingPrefs {
     flowMode: 'paginated' | 'scrolled';
     spread: 'none' | 'auto';
     autoTranslate: boolean;
-    showOriginal: boolean;
+    showTranslation: boolean;  // in auto-translate: show injected translation below each paragraph
 }
 
 export const DEFAULT_PREFS: ReadingPrefs = {
@@ -86,7 +86,7 @@ export const DEFAULT_PREFS: ReadingPrefs = {
     flowMode: 'paginated',
     spread: 'none',
     autoTranslate: false,
-    showOriginal: false,
+    showTranslation: true,   // default: show translation
 };
 
 export interface StudyEntry {
@@ -174,7 +174,9 @@ export class EpubReaderDB extends Dexie {
             if (!p.flowMode) patch.flowMode = 'paginated';
             if (!p.spread) patch.spread = 'none';
             if (p.autoTranslate === undefined) patch.autoTranslate = false;
-            if (p.showOriginal === undefined) patch.showOriginal = false;
+            // migrate old showOriginal → showTranslation
+            if (p.showOriginal !== undefined && p.showTranslation === undefined) patch.showTranslation = !p.showOriginal;
+            if (p.showTranslation === undefined) patch.showTranslation = true;
             if (!p.targetLang) patch.targetLang = 'vi';
             if (Object.keys(patch).length) {
                 const migrated = { ...prefs, ...patch } as ReadingPrefs;

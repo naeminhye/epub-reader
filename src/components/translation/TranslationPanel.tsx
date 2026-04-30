@@ -1,4 +1,6 @@
 import { useEffect } from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CopyIcon, Settings01Icon } from '@hugeicons/core-free-icons';
 import {
     Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from '@/components/ui/sheet';
@@ -7,9 +9,14 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useReaderStore } from '@/stores/readerStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useT } from '@/lib/i18n/context';
+import { type TranslationErrorCode } from '@/lib/translation/client';
 import { toast } from 'sonner';
 
-export function TranslationPanel() {
+interface TranslationPanelProps {
+    onOpenSettings: () => void;
+}
+
+export function TranslationPanel({ onOpenSettings }: TranslationPanelProps) {
     const { isTranslationPanelOpen, setTranslationPanelOpen, selection, currentBook, prefs } = useReaderStore();
     const { translate, result, isLoading, error, reset } = useTranslation();
     const t = useT();
@@ -55,25 +62,27 @@ export function TranslationPanel() {
                 <ScrollArea className="flex-1 min-h-0">
                     <div className="px-6 py-5 space-y-6">
 
+                        {/* Original text */}
                         {selection?.text && (
                             <section>
                                 <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
                                     {t.original}
                                 </h3>
-                                <p className="text-sm leading-relaxed text-foreground/80" style={{ fontFamily: 'var(--font-sans, inherit)' }}>
+                                <p className="text-sm leading-relaxed text-foreground/80">
                                     {selection.text}
                                 </p>
                             </section>
                         )}
 
+                        {/* Translation section */}
                         <section>
                             <div className="flex items-center justify-between mb-2">
                                 <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                                     {t.translationLangLabel(targetLang)}
                                 </h3>
                                 {result && !isLoading && (
-                                    <Button variant="ghost" size="sm" onClick={handleCopy} className="h-7 px-2 -mr-2">
-                                        <span className="text-xs">{t.copy}</span>
+                                    <Button variant="ghost" size="sm" onClick={handleCopy} className="h-7 px-2 -mr-2" title={t.copy}>
+                                        <span className="text-xs"><HugeiconsIcon icon={CopyIcon} /></span>
                                     </Button>
                                 )}
                             </div>
@@ -87,13 +96,11 @@ export function TranslationPanel() {
                             )}
 
                             {error && (
-                                <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 space-y-2">
-                                    <p className="text-sm text-destructive">{error}</p>
-                                    <Button variant="outline" size="sm" className="h-8"
-                                        onClick={() => selection?.text && translate({ text: selection.text, targetLang, bookId: currentBook?.id })}>
-                                        <span className="text-xs">{t.retry}</span>
-                                    </Button>
-                                </div>
+                                <TranslationErrorBlock
+                                    error={error}
+                                    onRetry={() => selection?.text && translate({ text: selection.text, targetLang, bookId: currentBook?.id })}
+                                    onOpenSettings={onOpenSettings}
+                                />
                             )}
 
                             {result && !isLoading && (
@@ -103,9 +110,20 @@ export function TranslationPanel() {
                             )}
                         </section>
 
+                        {/* Footer metadata */}
                         {result && !isLoading && (
-                            <div className="pt-4 border-t text-xs text-muted-foreground">
-                                {result.cached ? t.fromCacheLabel : t.translatedBy(result.model ?? 'Gemini')}
+                            <div className="pt-4 border-t text-xs text-muted-foreground flex items-center justify-between">
+                                <span>
+                                    {result.cached
+                                        ? t.fromCacheLabel
+                                        : t.translatedBy(`${result.model ?? 'AI'} via ${result.provider ?? 'Gemini'}`)}
+                                </span>
+                                <Button
+                                    variant="ghost" size="sm" className="h-6 text-xs px-2 -mr-2 text-muted-foreground"
+                                    onClick={onOpenSettings}
+                                >
+                                    <HugeiconsIcon icon={Settings01Icon} />
+                                </Button>
                             </div>
                         )}
 
@@ -114,4 +132,59 @@ export function TranslationPanel() {
             </SheetContent>
         </Sheet>
     );
+}
+
+function TranslationErrorBlock({
+    error, onRetry, onOpenSettings,
+}: {
+    error: string;
+    onRetry: () => void;
+    onOpenSettings: () => void;
+}) {
+    const t = useT();
+
+    // Map error message to canonical display + whether to show settings button
+    const { displayMsg, showSettings } = mapErrorDisplay(error, t);
+
+    return (
+        <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 space-y-3">
+            <div className="flex items-start gap-2">
+                <span className="text-destructive text-base leading-none mt-0.5">⚠</span>
+                <p className="text-sm text-destructive font-medium">{displayMsg}</p>
+            </div>
+            <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={onRetry}>
+                    {t.retry}
+                </Button>
+                {showSettings && (
+                    <Button variant="default" size="sm" className="h-8 text-xs" onClick={onOpenSettings}>
+                        {t.errGoToSettings}
+                    </Button>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function mapErrorDisplay(
+    error: string,
+    t: ReturnType<typeof useT>
+): { displayMsg: string; code: TranslationErrorCode; showSettings: boolean } {
+    const msg = error.toLowerCase();
+    if (msg.includes('invalid key') || msg.includes('invalid_key')) {
+        return { displayMsg: t.errInvalidKey, code: 'invalid_key', showSettings: true };
+    }
+    if (msg.includes('too many') || msg.includes('rate limit') || msg.includes('429')) {
+        return { displayMsg: t.errRateLimited, code: 'rate_limited', showSettings: false };
+    }
+    if (msg.includes('blocked') || msg.includes('403')) {
+        return { displayMsg: t.errKeyBlocked, code: 'key_blocked', showSettings: true };
+    }
+    if (msg.includes('network') || msg.includes('reach') || msg.includes('connect')) {
+        return { displayMsg: t.errNetwork, code: 'network', showSettings: false };
+    }
+    if (msg.includes('all models')) {
+        return { displayMsg: t.errAllModelsFailed, code: 'all_models_failed', showSettings: true };
+    }
+    return { displayMsg: t.errUnknown, code: 'unknown', showSettings: true };
 }

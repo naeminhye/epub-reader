@@ -14,8 +14,11 @@ interface ReaderState {
     isTranslationPanelOpen: boolean;
     isSearchOpen: boolean;
     isProgressOpen: boolean;
+    isTranslationSettingsOpen: boolean;
     isStudyOpen: boolean;
     selection: SelectionInfo | null;
+    isWordLookupOpen: boolean;
+    setWordLookupOpen: (open: boolean) => void;
 
     openBook: (book: Book) => void;
     closeBook: () => void;
@@ -27,6 +30,7 @@ interface ReaderState {
     setSelection: (info: SelectionInfo | null) => void;
     setSearchOpen: (open: boolean) => void;
     setProgressOpen: (open: boolean) => void;
+    setTranslationSettingsOpen: (open: boolean) => void;
     setStudyOpen: (open: boolean) => void;
 }
 
@@ -41,8 +45,11 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
     isTranslationPanelOpen: false,
     isSearchOpen: false,
     isProgressOpen: false,
+    isTranslationSettingsOpen: false,
     isStudyOpen: false,
     selection: null,
+    isWordLookupOpen: false,
+    setWordLookupOpen: (open: boolean) => set({ isWordLookupOpen: open }),
 
     openBook: (book) =>
         set({
@@ -66,6 +73,7 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
             selection: null,
             isSearchOpen: false,
             isProgressOpen: false,
+            isTranslationSettingsOpen: false,
             isStudyOpen: false,
         }),
 
@@ -97,5 +105,6 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
     setSelection: (info) => set({ selection: info }),
     setSearchOpen: (open) => set({ isSearchOpen: open }),
     setProgressOpen: (open) => set({ isProgressOpen: open }),
+    setTranslationSettingsOpen: (open) => set({ isTranslationSettingsOpen: open }),
     setStudyOpen: (open) => set({ isStudyOpen: open }),
 }));

@@ -1,452 +1,185 @@
+/**
+ * translations.ts — loads locale JSON files and exposes a typed Translations object.
+ *
+ * Plain strings live in locales/{locale}.json.
+ * Interpolated strings use {placeholder} syntax in JSON and are converted to
+ * functions here so callers use the same `t.key(params)` API as before.
+ *
+ * To add a new locale: create locales/{code}.json with the same keys and add
+ * the code to the Locale union below.
+ */
+
+import en from './locales/en.json';
+import vi from './locales/vi.json';
+import ko from './locales/ko.json';
+
 export type Locale = 'en' | 'vi' | 'ko';
 
+type RawLocale = typeof en;
+
+/** Replace {placeholder} tokens in a string */
+function interp(str: string, params: Record<string, string | number>): string {
+    return str.replace(/\{(\w+)\}/g, (_, key) => String(params[key] ?? `{${key}}`));
+}
+
+/** Build the full typed translations object from a raw JSON locale */
+function buildTranslations(raw: RawLocale) {
+    return {
+        // ── Plain strings (returned as-is) ──────────────────────────────────
+        library: raw.library,
+        libraryLoading: raw.libraryLoading,
+        libraryEmpty: raw.libraryEmpty,
+        addEpub: raw.addEpub,
+        importing: raw.importing,
+        readingFile: raw.readingFile,
+        dropOrClick: raw.dropOrClick,
+        open: raw.open,
+        removeFromLibrary: raw.removeFromLibrary,
+        contents: raw.contents,
+        search: raw.search,
+        scroll: raw.scroll,
+        pages: raw.pages,
+        singlePage: raw.singlePage,
+        doublePage: raw.doublePage,
+        typography: raw.typography,
+        font: raw.font,
+        fontSize: raw.fontSize,
+        lineHeight: raw.lineHeight,
+        fontEbGaramond: raw.fontEbGaramond,
+        fontMerriweather: raw.fontMerriweather,
+        fontMontserrat: raw.fontMontserrat,
+        fontPublicSans: raw.fontPublicSans,
+        fontSystemSerif: raw.fontSystemSerif,
+        switchToScroll: raw.switchToScroll,
+        switchToPages: raw.switchToPages,
+        prevChapter: raw.prevChapter,
+        nextChapter: raw.nextChapter,
+        scrollMode: raw.scrollMode,
+        prev: raw.prev,
+        next: raw.next,
+        openingBook: raw.openingBook,
+        couldNotOpen: raw.couldNotOpen,
+        epubCorrupted: raw.epubCorrupted,
+        prevPage: raw.prevPage,
+        nextPage: raw.nextPage,
+        selectionActions: raw.selectionActions,
+        translate: raw.translate,
+        define: raw.define,
+        highlight: raw.highlight,
+        close: raw.close,
+        color: raw.color,
+        translateTitle: raw.translateTitle,
+        defineTitle: raw.defineTitle,
+        highlightTitle: raw.highlightTitle,
+        translationTitle: raw.translationTitle,
+        fromCache: raw.fromCache,
+        fromCacheLabel: raw.fromCacheLabel,
+        translating: raw.translating,
+        translationError: raw.translationError,
+        original: raw.original,
+        copy: raw.copy,
+        copied: raw.copied,
+        couldNotCopy: raw.couldNotCopy,
+        retry: raw.retry,
+        targetLanguage: raw.targetLanguage,
+        searchInBook: raw.searchInBook,
+        searching: raw.searching,
+        language: raw.language,
+        badgeNew: raw.badgeNew,
+        badgeReading: raw.badgeReading,
+        badgeDone: raw.badgeDone,
+        rateLimited: raw.rateLimited,
+        allModelsFailed: raw.allModelsFailed,
+        rateLimitRetry: raw.rateLimitRetry,
+        rateLimitDismiss: raw.rateLimitDismiss,
+        readingProgress: raw.readingProgress,
+        avgReadingSpeed: raw.avgReadingSpeed,
+        study: raw.study,
+        studyGroup: raw.studyGroup,
+        studyTerm: raw.studyTerm,
+        studyNote: raw.studyNote,
+        studyAdd: raw.studyAdd,
+        studyAdded: raw.studyAdded,
+        studyExport: raw.studyExport,
+        studyEmpty: raw.studyEmpty,
+        studyDelete: raw.studyDelete,
+        studyDeleteConfirm: raw.studyDeleteConfirm,
+        studyTermPlaceholder: raw.studyTermPlaceholder,
+        studyNotePlaceholder: raw.studyNotePlaceholder,
+        wordLookup: raw.wordLookup,
+        wordLookupPlaceholder: raw.wordLookupPlaceholder,
+        wordNotFound: raw.wordNotFound,
+        wordNotFoundHint: raw.wordNotFoundHint,
+        phonetics: raw.phonetics,
+        definitions: raw.definitions,
+        synonyms: raw.synonyms,
+        searchGoogle: raw.searchGoogle,
+        searchWikipedia: raw.searchWikipedia,
+        searchYouTube: raw.searchYouTube,
+        wikiSummary: raw.wikiSummary,
+        wikiReadMore: raw.wikiReadMore,
+        autoTranslate: raw.autoTranslate,
+        autoTranslateOn: raw.autoTranslateOn,
+        autoTranslateOff: raw.autoTranslateOff,
+        autoTranslateWarning: raw.autoTranslateWarning,
+        howToTranslate: raw.howToTranslate,
+        showTranslation: raw.showTranslation,
+        hideTranslation: raw.hideTranslation,
+        translatingPage: raw.translatingPage,
+        translationSettings: raw.translationSettings,
+        translationEngine: raw.translationEngine,
+        translationEngineDesc: raw.translationEngineDesc,
+        apiKeySection: raw.apiKeySection,
+        apiKeyDesc: raw.apiKeyDesc,
+        apiKeyPlaceholder: raw.apiKeyPlaceholder,
+        apiKeySaved: raw.apiKeySaved,
+        apiKeyCleared: raw.apiKeyCleared,
+        modelSelection: raw.modelSelection,
+        openSettings: raw.openSettings,
+        settingsSaved: raw.settingsSaved,
+        errInvalidKey: raw.errInvalidKey,
+        errRateLimited: raw.errRateLimited,
+        errKeyBlocked: raw.errKeyBlocked,
+        errNetwork: raw.errNetwork,
+        errAllModelsFailed: raw.errAllModelsFailed,
+        errUnknown: raw.errUnknown,
+        errGoToSettings: raw.errGoToSettings,
+
+        // ── Interpolated strings (converted to functions) ───────────────────
+        libraryBookCount: (n: number) => interp(raw.libraryBookCount, { n }),
+        importFailed: (name: string) => interp(raw.importFailed, { name }),
+        importAdded: (title: string) => interp(raw.importAdded, { title }),
+        removeConfirm: (title: string) => interp(raw.removeConfirm, { title }),
+        themeLabel: (theme: string) => interp(raw.themeLabel, { theme }),
+        translatedBy: (model: string) => interp(raw.translatedBy, { model }),
+        noResults: (q: string) => interp(raw.noResults, { q }),
+        resultCount: (n: number) => interp(raw.resultCount, { n }),
+        decrease: (label: string) => interp(raw.decrease, { label }),
+        increase: (label: string) => interp(raw.increase, { label }),
+        rateLimitedWithTime: (s: number) => interp(raw.rateLimitedWithTime, { s }),
+        progressPercent: (n: number) => interp(raw.progressPercent, { n }),
+        pagesRead: (n: number) => interp(raw.pagesRead, { n }),
+        pagesLeft: (n: number) => interp(raw.pagesLeft, { n }),
+        wordsEstimate: (n: number) => interp(raw.wordsEstimate, { n: n.toLocaleString() }),
+        timeLeft: (min: number) => min < 60
+            ? interp(raw.timeLeft_min, { min })
+            : interp(raw.timeLeft_hr, { h: Math.round(min / 60), m: min % 60 }),
+
+        // targetLanguageName — looks up prefixed key in JSON
+        targetLanguageName: (code: string): string =>
+            (raw as Record<string, string>)[`targetLanguageName_${code}`] ?? code,
+
+        // translationLangLabel — same lookup, same data
+        translationLangLabel: (code: string): string =>
+            (raw as Record<string, string>)[`targetLanguageName_${code}`] ?? code,
+    } as const;
+}
+
 export const translations = {
-    en: {
-        // Library
-        library: 'Library',
-        libraryLoading: 'Loading…',
-        libraryEmpty: 'Your library is empty. Drop an EPUB file to get started.',
-        libraryBookCount: (n: number) => `${n} book${n === 1 ? '' : 's'}`,
-
-        // Import
-        addEpub: 'Add EPUB',
-        importing: 'Importing…',
-        readingFile: 'Reading file',
-        dropOrClick: 'Drop or click to browse',
-        importFailed: (name: string) => `Failed to import ${name}`,
-        importAdded: (title: string) => `Added "${title}"`,
-
-        // Book card
-        open: 'Open',
-        removeFromLibrary: 'Remove from library',
-        removeConfirm: (title: string) => `Remove "${title}" from library?`,
-
-        // Reader toolbar
-        contents: 'Contents',
-        search: 'Search',
-        scroll: 'Scroll',
-        pages: 'Pages',
-        singlePage: '1pg',
-        doublePage: '2pg',
-        typography: 'Typography',
-        font: 'Font',
-        fontSize: 'Font size',
-        lineHeight: 'Line height',
-        fontEbGaramond: 'EB Garamond',
-        fontMerriweather: 'Merriweather',
-        fontMontserrat: 'Montserrat',
-        fontPublicSans: 'Public Sans',
-        fontSystemSerif: 'System serif',
-        switchToScroll: 'Switch to scroll mode',
-        switchToPages: 'Switch to page mode',
-        themeLabel: (theme: string) => `Theme: ${theme}`,
-
-        // Reader navigation
-        prevChapter: 'Prev chapter',
-        nextChapter: 'Next chapter',
-        scrollMode: 'Scroll mode',
-        prev: 'Prev',
-        next: 'Next',
-        openingBook: 'Opening book…',
-        couldNotOpen: 'Could not open this book',
-        epubCorrupted: 'The EPUB file may be corrupted or use unsupported features.',
-        prevPage: 'Previous page',
-        nextPage: 'Next page',
-
-        // Selection popover
-        selectionActions: 'Selection actions',
-        translate: 'Translate',
-        define: 'Define',
-        highlight: 'Highlight',
-        close: 'Close',
-        color: 'Color:',
-        translateTitle: 'Translate selection',
-        defineTitle: 'Look up definition',
-        highlightTitle: 'Highlight',
-
-        // Translation panel
-        translationTitle: 'Translation',
-        fromCache: 'From cache · instant',
-        translating: 'Translating…',
-        translationError: 'Error',
-        original: 'Original',
-        copy: 'Copy',
-        copied: 'Copied',
-        couldNotCopy: 'Could not copy',
-        retry: 'Retry',
-        translatedBy: (model: string) => `Translated by ${model}`,
-        fromCacheLabel: 'From cache · instant',
-
-        // Translation target language
-        targetLanguage: 'Target language',
-        targetLanguageName: (code: string): string => ({
-            vi: 'Vietnamese',
-            en: 'English',
-            ko: 'Korean',
-            zh: 'Chinese',
-            ja: 'Japanese',
-            fr: 'French',
-            de: 'German',
-            es: 'Spanish',
-        }[code] ?? code),
-
-        // Translation panel — dynamic label based on target language
-        translationLangLabel: (code: string): string => ({
-            vi: 'Vietnamese',
-            en: 'English',
-            ko: 'Korean',
-            zh: 'Chinese',
-            ja: 'Japanese',
-            fr: 'French',
-            de: 'German',
-            es: 'Spanish',
-        }[code] ?? code),
-
-        // Search panel
-        searchInBook: 'Search in book…',
-        searching: 'Searching…',
-        noResults: (q: string) => `No results for "${q}"`,
-        resultCount: (n: number) => `${n} result${n !== 1 ? 's' : ''}`,
-
-        // Stepper accessibility
-        decrease: (label: string) => `Decrease ${label}`,
-        increase: (label: string) => `Increase ${label}`,
-
-        // Language toggle
-        language: 'Language',
-
-        // Status badges
-        badgeNew: 'New',
-        badgeReading: 'Reading',
-        badgeDone: 'Done',
-
-        // Rate limit
-        rateLimited: 'Translation rate limit reached.',
-        rateLimitedWithTime: (s: number) => `Rate limit reached. Try again in ${s}s.`,
-        allModelsFailed: 'Translation unavailable. All models failed.',
-        rateLimitRetry: 'Retry',
-        rateLimitDismiss: 'Dismiss',
-
-        // Reading progress panel
-        readingProgress: 'Reading Progress',
-        progressPercent: (n: number) => `${n}% read`,
-        pagesRead: (n: number) => `~${n} pages read`,
-        pagesLeft: (n: number) => `~${n} pages left`,
-        timeLeft: (min: number) => min < 60
-            ? `~${min} min left`
-            : `~${Math.round(min / 60)}h ${min % 60}m left`,
-        avgReadingSpeed: '250 words/min (avg)',
-        wordsEstimate: (n: number) => `~${n.toLocaleString()} words total`,
-
-        // Study group
-        study: 'Study',
-        studyGroup: 'Study Group',
-        studyTerm: 'Term',
-        studyNote: 'Note (optional)',
-        studyAdd: 'Add to study group',
-        studyAdded: 'Added to study group',
-        studyExport: 'Export CSV',
-        studyEmpty: 'No study entries yet. Select text and tap Study to add.',
-        studyDelete: 'Delete',
-        studyDeleteConfirm: 'Remove this entry?',
-        studyTermPlaceholder: 'Selected text',
-        studyNotePlaceholder: 'Your note…',
-
-        // Auto-translate
-        autoTranslate: 'Auto translate',
-        autoTranslateOn: 'Auto translate: ON',
-        autoTranslateOff: 'Auto translate: OFF',
-        showOriginal: 'Show original',
-        hideOriginal: 'Hide original',
-        translatingPage: 'Translating page…',
-    },
-
-    vi: {
-        library: 'Thư viện',
-        libraryLoading: 'Đang tải…',
-        libraryEmpty: 'Thư viện trống. Thả file EPUB vào đây để bắt đầu.',
-        libraryBookCount: (n: number) => `${n} cuốn sách`,
-
-        addEpub: 'Thêm EPUB',
-        importing: 'Đang nhập…',
-        readingFile: 'Đang đọc file',
-        dropOrClick: 'Thả file hoặc nhấn để chọn',
-        importFailed: (name: string) => `Nhập thất bại: ${name}`,
-        importAdded: (title: string) => `Đã thêm "${title}"`,
-
-        open: 'Mở',
-        removeFromLibrary: 'Xóa khỏi thư viện',
-        removeConfirm: (title: string) => `Xóa "${title}" khỏi thư viện?`,
-
-        contents: 'Mục lục',
-        search: 'Tìm kiếm',
-        scroll: 'Cuộn',
-        pages: 'Trang',
-        singlePage: '1tr',
-        doublePage: '2tr',
-        typography: 'Kiểu chữ',
-        font: 'Phông chữ',
-        fontSize: 'Cỡ chữ',
-        lineHeight: 'Khoảng cách dòng',
-        fontEbGaramond: 'EB Garamond',
-        fontMerriweather: 'Merriweather',
-        fontMontserrat: 'Montserrat',
-        fontPublicSans: 'Public Sans',
-        fontSystemSerif: 'Serif hệ thống',
-        switchToScroll: 'Chuyển sang chế độ cuộn',
-        switchToPages: 'Chuyển sang chế độ trang',
-        themeLabel: (theme: string) => `Giao diện: ${theme}`,
-
-        prevChapter: 'Chương trước',
-        nextChapter: 'Chương sau',
-        scrollMode: 'Chế độ cuộn',
-        prev: 'Trước',
-        next: 'Sau',
-        openingBook: 'Đang mở sách…',
-        couldNotOpen: 'Không thể mở sách này',
-        epubCorrupted: 'File EPUB có thể bị hỏng hoặc không được hỗ trợ.',
-        prevPage: 'Trang trước',
-        nextPage: 'Trang sau',
-
-        selectionActions: 'Thao tác với văn bản',
-        translate: 'Dịch',
-        define: 'Tra từ',
-        highlight: 'Tô màu',
-        close: 'Đóng',
-        color: 'Màu:',
-        translateTitle: 'Dịch văn bản đã chọn',
-        defineTitle: 'Tra cứu định nghĩa',
-        highlightTitle: 'Tô sáng văn bản',
-
-        translationTitle: 'Bản dịch',
-        fromCache: 'Từ bộ nhớ cache · tức thì',
-        translating: 'Đang dịch…',
-        translationError: 'Lỗi',
-        original: 'Nguyên bản',
-        copy: 'Sao chép',
-        copied: 'Đã sao chép',
-        couldNotCopy: 'Không thể sao chép',
-        retry: 'Thử lại',
-        translatedBy: (model: string) => `Dịch bởi ${model}`,
-        fromCacheLabel: 'Từ cache · tức thì',
-
-        targetLanguage: 'Ngôn ngữ dịch',
-        targetLanguageName: (code: string): string => ({
-            vi: 'Tiếng Việt',
-            en: 'Tiếng Anh',
-            ko: 'Tiếng Hàn',
-            zh: 'Tiếng Trung',
-            ja: 'Tiếng Nhật',
-            fr: 'Tiếng Pháp',
-            de: 'Tiếng Đức',
-            es: 'Tiếng Tây Ban Nha',
-        }[code] ?? code),
-
-        translationLangLabel: (code: string): string => ({
-            vi: 'Tiếng Việt',
-            en: 'Tiếng Anh',
-            ko: 'Tiếng Hàn',
-            zh: 'Tiếng Trung',
-            ja: 'Tiếng Nhật',
-            fr: 'Tiếng Pháp',
-            de: 'Tiếng Đức',
-            es: 'Tiếng Tây Ban Nha',
-        }[code] ?? code),
-
-        searchInBook: 'Tìm trong sách…',
-        searching: 'Đang tìm…',
-        noResults: (q: string) => `Không tìm thấy kết quả cho "${q}"`,
-        resultCount: (n: number) => `${n} kết quả`,
-
-        decrease: (label: string) => `Giảm ${label}`,
-        increase: (label: string) => `Tăng ${label}`,
-
-        language: 'Ngôn ngữ',
-
-        badgeNew: 'Mới',
-        badgeReading: 'Đang đọc',
-        badgeDone: 'Xong',
-
-        rateLimited: 'Đã đạt giới hạn dịch thuật.',
-        rateLimitedWithTime: (s: number) => `Đạt giới hạn. Thử lại sau ${s} giây.`,
-        allModelsFailed: 'Không thể dịch. Tất cả mô hình đều thất bại.',
-        rateLimitRetry: 'Thử lại',
-        rateLimitDismiss: 'Bỏ qua',
-
-        readingProgress: 'Tiến độ đọc',
-        progressPercent: (n: number) => `Đã đọc ${n}%`,
-        pagesRead: (n: number) => `~${n} trang đã đọc`,
-        pagesLeft: (n: number) => `~${n} trang còn lại`,
-        timeLeft: (min: number) => min < 60
-            ? `~${min} phút còn lại`
-            : `~${Math.round(min / 60)}h ${min % 60}m còn lại`,
-        avgReadingSpeed: '250 từ/phút (trung bình)',
-        wordsEstimate: (n: number) => `~${n.toLocaleString()} từ tổng cộng`,
-
-        study: 'Học',
-        studyGroup: 'Nhóm từ vựng',
-        studyTerm: 'Từ/Cụm từ',
-        studyNote: 'Ghi chú (tùy chọn)',
-        studyAdd: 'Thêm vào nhóm học',
-        studyAdded: 'Đã thêm vào nhóm học',
-        studyExport: 'Xuất CSV',
-        studyEmpty: 'Chưa có từ nào. Chọn văn bản và nhấn Học để thêm.',
-        studyDelete: 'Xóa',
-        studyDeleteConfirm: 'Xóa mục này?',
-        studyTermPlaceholder: 'Văn bản đã chọn',
-        studyNotePlaceholder: 'Ghi chú của bạn…',
-
-        autoTranslate: 'Tự động dịch',
-        autoTranslateOn: 'Tự động dịch: BẬT',
-        autoTranslateOff: 'Tự động dịch: TẮT',
-        showOriginal: 'Xem bản gốc',
-        hideOriginal: 'Ẩn bản gốc',
-        translatingPage: 'Đang dịch trang…',
-    },
-
-    ko: {
-        library: '라이브러리',
-        libraryLoading: '로딩 중…',
-        libraryEmpty: '라이브러리가 비어 있습니다. EPUB 파일을 여기에 놓으세요.',
-        libraryBookCount: (n: number) => `책 ${n}권`,
-
-        addEpub: 'EPUB 추가',
-        importing: '가져오는 중…',
-        readingFile: '파일 읽는 중',
-        dropOrClick: '파일을 놓거나 클릭하여 선택',
-        importFailed: (name: string) => `${name} 가져오기 실패`,
-        importAdded: (title: string) => `"${title}" 추가됨`,
-
-        open: '열기',
-        removeFromLibrary: '라이브러리에서 제거',
-        removeConfirm: (title: string) => `"${title}"을(를) 라이브러리에서 제거할까요?`,
-
-        contents: '목차',
-        search: '검색',
-        scroll: '스크롤',
-        pages: '페이지',
-        singlePage: '1쪽',
-        doublePage: '2쪽',
-        typography: '서체',
-        font: '글꼴',
-        fontSize: '글자 크기',
-        lineHeight: '줄 간격',
-        fontEbGaramond: 'EB 가라몬드',
-        fontMerriweather: '메리웨더',
-        fontMontserrat: '몬세라트',
-        fontPublicSans: '퍼블릭 산스',
-        fontSystemSerif: '시스템 세리프',
-        switchToScroll: '스크롤 모드로 전환',
-        switchToPages: '페이지 모드로 전환',
-        themeLabel: (theme: string) => `테마: ${theme}`,
-
-        prevChapter: '이전 장',
-        nextChapter: '다음 장',
-        scrollMode: '스크롤 모드',
-        prev: '이전',
-        next: '다음',
-        openingBook: '책 여는 중…',
-        couldNotOpen: '이 책을 열 수 없습니다',
-        epubCorrupted: 'EPUB 파일이 손상되었거나 지원하지 않는 기능을 사용합니다.',
-        prevPage: '이전 페이지',
-        nextPage: '다음 페이지',
-
-        selectionActions: '선택 작업',
-        translate: '번역',
-        define: '정의',
-        highlight: '하이라이트',
-        close: '닫기',
-        color: '색상:',
-        translateTitle: '선택한 텍스트 번역',
-        defineTitle: '단어 정의 찾기',
-        highlightTitle: '텍스트 강조',
-
-        translationTitle: '번역',
-        fromCache: '캐시에서 · 즉시',
-        translating: '번역 중…',
-        translationError: '오류',
-        original: '원문',
-        copy: '복사',
-        copied: '복사됨',
-        couldNotCopy: '복사할 수 없습니다',
-        retry: '다시 시도',
-        translatedBy: (model: string) => `${model}(으)로 번역됨`,
-        fromCacheLabel: '캐시에서 · 즉시',
-
-        targetLanguage: '번역 언어',
-        targetLanguageName: (code: string): string => ({
-            vi: '베트남어',
-            en: '영어',
-            ko: '한국어',
-            zh: '중국어',
-            ja: '일본어',
-            fr: '프랑스어',
-            de: '독일어',
-            es: '스페인어',
-        }[code] ?? code),
-
-        translationLangLabel: (code: string): string => ({
-            vi: '베트남어',
-            en: '영어',
-            ko: '한국어',
-            zh: '중국어',
-            ja: '일본어',
-            fr: '프랑스어',
-            de: '독일어',
-            es: '스페인어',
-        }[code] ?? code),
-
-        searchInBook: '책 내 검색…',
-        searching: '검색 중…',
-        noResults: (q: string) => `"${q}"에 대한 결과 없음`,
-        resultCount: (n: number) => `결과 ${n}개`,
-
-        decrease: (label: string) => `${label} 줄이기`,
-        increase: (label: string) => `${label} 늘리기`,
-
-        language: '언어',
-
-        badgeNew: '새 책',
-        badgeReading: '읽는 중',
-        badgeDone: '완료',
-
-        rateLimited: '번역 한도에 도달했습니다.',
-        rateLimitedWithTime: (s: number) => `한도 초과. ${s}초 후 다시 시도하세요.`,
-        allModelsFailed: '번역 불가. 모든 모델이 실패했습니다.',
-        rateLimitRetry: '다시 시도',
-        rateLimitDismiss: '닫기',
-
-        readingProgress: '읽기 진행률',
-        progressPercent: (n: number) => `${n}% 읽음`,
-        pagesRead: (n: number) => `~${n}페이지 읽음`,
-        pagesLeft: (n: number) => `~${n}페이지 남음`,
-        timeLeft: (min: number) => min < 60
-            ? `약 ${min}분 남음`
-            : `약 ${Math.round(min / 60)}시간 ${min % 60}분 남음`,
-        avgReadingSpeed: '분당 250단어 (평균)',
-        wordsEstimate: (n: number) => `총 약 ${n.toLocaleString()}단어`,
-
-        study: '학습',
-        studyGroup: '단어장',
-        studyTerm: '단어/구문',
-        studyNote: '메모 (선택)',
-        studyAdd: '단어장에 추가',
-        studyAdded: '단어장에 추가됨',
-        studyExport: 'CSV 내보내기',
-        studyEmpty: '아직 단어가 없습니다. 텍스트를 선택하고 학습을 탭하세요.',
-        studyDelete: '삭제',
-        studyDeleteConfirm: '이 항목을 삭제할까요?',
-        studyTermPlaceholder: '선택한 텍스트',
-        studyNotePlaceholder: '메모를 입력하세요…',
-
-        autoTranslate: '자동 번역',
-        autoTranslateOn: '자동 번역: 켜짐',
-        autoTranslateOff: '자동 번역: 꺼짐',
-        showOriginal: '원문 보기',
-        hideOriginal: '원문 숨기기',
-        translatingPage: '페이지 번역 중…',
-    },
+    en: buildTranslations(en),
+    vi: buildTranslations(vi),
+    ko: buildTranslations(ko),
 } as const;
 
-export type TranslationKey = keyof typeof translations.en;
-export type Translations = typeof translations.en;
+export type Translations = ReturnType<typeof buildTranslations>;
+export type TranslationKey = keyof Translations;

@@ -6,8 +6,10 @@ import { ReaderToolbar } from './ReaderToolbar';
 import { SearchPanel } from './SearchPanel';
 import { ReadingProgressPanel } from './ReadingProgressPanel';
 import { StudyPanel } from './StudyPanel';
+import { WordLookupPanel } from '@/components/translation/WordLookupPanel';
 import { SelectionPopover } from '@/components/translation/SelectionPopover';
 import { TranslationPanel } from '@/components/translation/TranslationPanel';
+import { TranslationSettingsPanel } from '@/components/translation/TranslationSettingsPanel';
 import { useT } from '@/lib/i18n/context';
 import { Button } from '@/components/ui/button';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -35,13 +37,31 @@ export function ReaderView() {
         setProgressOpen,
         isStudyOpen,
         setStudyOpen,
+        isWordLookupOpen,
+        setWordLookupOpen,
+        isTranslationSettingsOpen,
+        setTranslationSettingsOpen,
         pageInfo,
         totalLocations,
     } = useReaderStore();
 
+    // const { translatePage, clearTranslations, updateVisibility, cancel, state: autoState } = useAutoTranslate({
+    //     enabled: prefs.autoTranslate,
+    //     showTranslation: prefs.showTranslation,
+    //     targetLang: prefs.targetLang ?? 'vi',
+    //     bookId: currentBook?.id,
+    //     onRateLimit: useCallback((retryAfterSeconds?: number) => {
+    //         updatePrefs({ autoTranslate: false });
+    //         const msg = retryAfterSeconds
+    //             ? t.rateLimitedWithTime(retryAfterSeconds)
+    //             : t.rateLimited;
+    //         toast.warning(msg, { duration: 8000 });
+    //     }, [updatePrefs, t]),
+    // });
+
     const { translatePage, clearTranslations, updateVisibility, cancel, state: autoState } = useAutoTranslate({
         enabled: prefs.autoTranslate,
-        showOriginal: prefs.showOriginal,
+        showOriginal: !prefs.showTranslation, // changed — hook expects "showOriginal"
         targetLang: prefs.targetLang ?? 'vi',
         bookId: currentBook?.id,
         onRateLimit: useCallback((retryAfterSeconds?: number) => {
@@ -106,8 +126,8 @@ export function ReaderView() {
     useEffect(() => {
         const doc = currentDocRef.current;
         if (!doc || !prefs.autoTranslate) return;
-        updateVisibility(doc, prefs.showOriginal);
-    }, [prefs.showOriginal, prefs.autoTranslate, updateVisibility]);
+        updateVisibility(doc, prefs.showTranslation);
+    }, [prefs.showTranslation, prefs.autoTranslate, updateVisibility]);
 
     useEffect(() => {
         if (prefs.autoTranslate) return;
@@ -138,8 +158,8 @@ export function ReaderView() {
     }, [selection, setTranslationPanelOpen]);
 
     const handleDefine = useCallback(() => {
-        if (selection) setTranslationPanelOpen(true);
-    }, [selection, setTranslationPanelOpen]);
+        if (selection) setWordLookupOpen(true);
+    }, [selection, setWordLookupOpen]);
 
     const handleStudy = useCallback(() => {
         setStudyOpen(true);
@@ -163,6 +183,7 @@ export function ReaderView() {
                 onGoTo={goTo}
                 onSearchOpen={() => setSearchOpen(true)}
                 onProgressOpen={() => setProgressOpen(true)}
+                onTranslationSettings={() => setTranslationSettingsOpen(true)}
             />
 
             {/* Auto-translate progress / error banner */}
@@ -271,7 +292,7 @@ export function ReaderView() {
                 onStudy={handleStudy}
                 onDismiss={handleDismiss}
             />
-            <TranslationPanel />
+            <TranslationPanel onOpenSettings={() => setTranslationSettingsOpen(true)} />
             <SearchPanel onSearch={search} onGoTo={goTo} />
             <ReadingProgressPanel
                 open={isProgressOpen}
@@ -282,6 +303,15 @@ export function ReaderView() {
                 open={isStudyOpen}
                 onClose={() => setStudyOpen(false)}
                 initialTerm={selection?.text}
+            />
+            <WordLookupPanel
+                word={selection?.text ?? ''}
+                open={isWordLookupOpen}
+                onClose={() => setWordLookupOpen(false)}
+            />
+            <TranslationSettingsPanel
+                open={isTranslationSettingsOpen}
+                onClose={() => setTranslationSettingsOpen(false)}
             />
         </div>
     );

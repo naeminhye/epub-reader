@@ -2,7 +2,7 @@ import { useLayoutEffect, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { useT } from '@/lib/i18n/context';
-import { BookOpenIcon, Cancel01Icon } from '@hugeicons/core-free-icons';
+import { BookBookmark02Icon, BookOpenIcon, Cancel01Icon, TranslateIcon } from '@hugeicons/core-free-icons';
 import type { SelectionInfo } from '@/lib/epub/useEpubReader';
 
 interface SelectionPopoverProps {
@@ -79,6 +79,7 @@ export function SelectionPopover({
                     className="flex-1 h-8 gap-1.5 px-2"
                     title={t.translateTitle}
                 >
+                    <HugeiconsIcon icon={TranslateIcon} />
                     <span className="text-xs">{t.translate}</span>
                 </Button>
 
@@ -98,6 +99,7 @@ export function SelectionPopover({
                     className="flex-1 h-8 px-2"
                     title={t.study}
                 >
+                    <HugeiconsIcon icon={BookBookmark02Icon} />
                     <span className="text-xs">{t.study}</span>
                 </Button>
 
@@ -113,8 +115,8 @@ export function SelectionPopover({
                 {/* Arrow indicator */}
                 <div
                     className={`absolute left-1/2 -translate-x-1/2 w-0 h-0 border-x-[6px] border-x-transparent ${isAbove
-                            ? 'top-full border-t-[6px] border-t-border'
-                            : 'bottom-full border-b-[6px] border-b-border'
+                        ? 'top-full border-t-[6px] border-t-border'
+                        : 'bottom-full border-b-[6px] border-b-border'
                         }`}
                     aria-hidden="true"
                 />

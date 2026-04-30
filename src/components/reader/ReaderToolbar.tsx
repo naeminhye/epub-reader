@@ -18,7 +18,6 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useReaderStore } from '@/stores/readerStore';
 import { useLocale, useT } from '@/lib/i18n/context';
-// import type { Locale } from '@/lib/i18n/translations';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
     ArrowLeft01Icon,
@@ -27,7 +26,13 @@ import {
     Sun01Icon,
     BookOpenIcon,
     SearchIcon,
-    Settings01Icon,
+    CarouselVerticalIcon,
+    CarouselHorizontalIcon,
+    BorderAll02Icon,
+    LayoutTwoColumnIcon,
+    LanguageSquareIcon,
+    TranslateIcon,
+    TextFontIcon
 } from '@hugeicons/core-free-icons';
 import type { NavItem } from 'epubjs';
 
@@ -36,9 +41,10 @@ interface ReaderToolbarProps {
     onGoTo: (href: string) => void;
     onSearchOpen: () => void;
     onProgressOpen: () => void;
+    onTranslationSettings: () => void;
 }
 
-export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen }: ReaderToolbarProps) {
+export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen, onTranslationSettings }: ReaderToolbarProps) {
     const { currentBook, closeBook, prefs, updatePrefs, progress, pageInfo } = useReaderStore();
     const { locale, setLocale } = useLocale();
     const t = useT();
@@ -97,28 +103,15 @@ export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen }: Rea
                     )}
                 </div>
 
-                {/* Auto-translate toggle */}
+                {/* Translation settings — Languages icon */}
                 <Button
-                    variant={prefs.autoTranslate ? 'secondary' : 'ghost'}
-                    size="sm"
-                    className="shrink-0 text-xs font-normal"
-                    title={prefs.autoTranslate ? t.autoTranslateOn : t.autoTranslateOff}
-                    onClick={() => updatePrefs({ autoTranslate: !prefs.autoTranslate })}
+                    variant="ghost" size="sm"
+                    className="shrink-0"
+                    title={t.translationSettings}
+                    onClick={onTranslationSettings}
                 >
-                    {t.autoTranslate}
+                    <HugeiconsIcon icon={TranslateIcon} />
                 </Button>
-
-                {/* Show/hide original — only visible when autoTranslate is on */}
-                {prefs.autoTranslate && (
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="shrink-0 text-xs font-normal"
-                        onClick={() => updatePrefs({ showOriginal: !prefs.showOriginal })}
-                    >
-                        {prefs.showOriginal ? t.hideOriginal : t.showOriginal}
-                    </Button>
-                )}
 
                 {/* Flow mode toggle */}
                 <Button
@@ -127,7 +120,7 @@ export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen }: Rea
                     title={isPaginated ? t.switchToScroll : t.switchToPages}
                     onClick={() => updatePrefs({ flowMode: isPaginated ? 'scrolled' : 'paginated' })}
                 >
-                    {isPaginated ? t.scroll : t.pages}
+                    {isPaginated ? <HugeiconsIcon icon={CarouselHorizontalIcon} /> : <HugeiconsIcon icon={CarouselVerticalIcon} />}
                 </Button>
 
                 {/* Spread toggle — paginated only */}
@@ -137,7 +130,7 @@ export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen }: Rea
                         className="shrink-0 text-xs font-normal"
                         onClick={() => updatePrefs({ spread: isSpread ? 'none' : 'auto' })}
                     >
-                        {isSpread ? t.singlePage : t.doublePage}
+                        {isSpread ? <HugeiconsIcon icon={LayoutTwoColumnIcon} /> : <HugeiconsIcon icon={BorderAll02Icon} />}
                     </Button>
                 )}
 
@@ -157,6 +150,7 @@ export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen }: Rea
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" className="shrink-0 text-xs font-normal" title={t.language}>
+                            <HugeiconsIcon icon={LanguageSquareIcon} />
                             {locale.toUpperCase()}
                         </Button>
                     </DropdownMenuTrigger>
@@ -177,7 +171,7 @@ export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen }: Rea
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" className="shrink-0">
-                            <HugeiconsIcon icon={Settings01Icon} size={16} />
+                            <HugeiconsIcon icon={TextFontIcon} />
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-64 p-3">

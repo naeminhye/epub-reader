@@ -60,7 +60,7 @@ export function SearchPanel({ onSearch, onGoTo }: SearchPanelProps) {
                     <div className="divide-y">
                         {isSearching && (
                             <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-                                Searching…
+                                {t.searching}
                             </div>
                         )}
 

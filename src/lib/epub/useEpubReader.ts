@@ -285,11 +285,50 @@ export function useEpubReader({
     const search = useCallback(async (query: string): Promise<SearchResult[]> => {
         const book = bookRef.current;
         if (!book || !query.trim()) return [];
+
         try {
-            // epubjs search returns array of {cfi, excerpt} per spine item
+            const q = query.trim();
+            const results: SearchResult[] = [];
+
+            // epubjs v0.3 has no book.search(). The correct API is:
+            // iterate spine items, load each section, call section.find(query).
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const results = await (book as any).search(query.trim());
-            return (results ?? []) as SearchResult[];
+            const spine = (book as any).spine;
+            if (!spine?.spineItems?.length) return [];
+
+            // Process all spine items in parallel for speed, with concurrency cap
+            const items: unknown[] = Array.from(spine.spineItems);
+            const CONCURRENCY = 4;
+
+            for (let i = 0; i < items.length; i += CONCURRENCY) {
+                const batch = items.slice(i, i + CONCURRENCY);
+                const batchResults = await Promise.all(
+                    batch.map(async (item) => {
+                        try {
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            const section = item as any;
+                            // load() fetches and parses the section document
+                            // Book.load is not present on the typed Book, so use a runtime check
+                            const loader = (book as any)?.load;
+                            if (typeof loader === 'function') {
+                                await section.load(loader.bind(book));
+                            } else {
+                                // Fallback: call load without args if the loader isn't available on the book object
+                                await section.load();
+                            }
+                            // find() returns [{cfi, excerpt}]
+                            const found: Array<{ cfi: string; excerpt: string }> = section.find(q) ?? [];
+                            section.unload?.();
+                            return found;
+                        } catch {
+                            return [];
+                        }
+                    })
+                );
+                results.push(...batchResults.flat());
+            }
+
+            return results;
         } catch {
             return [];
         }

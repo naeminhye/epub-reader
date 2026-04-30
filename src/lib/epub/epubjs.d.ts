@@ -97,6 +97,8 @@ declare module 'epubjs' {
             cfiFromPercentage(pct: number): string;
             length(): number;
         };
+        // Note: book.search() does NOT exist in epubjs v0.3.
+        // Use section.find(query) on each spine item instead.
         renderTo(
             element: HTMLElement | string,
             options?: {

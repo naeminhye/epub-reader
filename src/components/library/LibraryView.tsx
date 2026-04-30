@@ -40,7 +40,6 @@ export function LibraryView() {
         books.find(b => b.progress > 0 && b.progress < 0.95 && b.lastReadAt)
         , [JSON.stringify(books)]); // Deep compare to catch progress/lastReadAt changes
 
-    console.log('Continue book:', continueBook);
     const filtered = useMemo(() => {
         let list = books;
         if (query.trim()) {

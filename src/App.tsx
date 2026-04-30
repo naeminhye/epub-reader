@@ -14,13 +14,21 @@ export default function App() {
     loadPrefs();
   }, [loadPrefs]);
 
-  // Sync theme to <html> so shadcn dark mode tokens apply everywhere.
-  // 'dark' class → shadcn dark mode; 'theme-sepia' is a custom class we handle separately.
+  // Sync theme to <html> — data-theme attr drives CSS variables,
+  // 'dark' class drives shadcn dark mode tokens simultaneously.
   useEffect(() => {
     const root = document.documentElement;
+    root.removeAttribute('data-theme');
     root.classList.remove('dark', 'theme-sepia');
-    if (theme === 'dark') root.classList.add('dark');
-    else if (theme === 'sepia') root.classList.add('theme-sepia');
+    if (theme === 'dark') {
+      root.setAttribute('data-theme', 'dark');
+      root.classList.add('dark');
+    } else if (theme === 'sepia') {
+      root.setAttribute('data-theme', 'cream');
+      root.classList.add('theme-sepia');
+    } else {
+      root.setAttribute('data-theme', 'paper');
+    }
   }, [theme]);
 
   return (

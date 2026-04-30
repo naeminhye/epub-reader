@@ -4,6 +4,8 @@ import {
 } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useT } from '@/lib/i18n/context';
+import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
+import { AlphabetJapaneseIcon, AlphabetKoreanIcon, BookSearchIcon, GoogleIcon, YoutubeIcon } from '@hugeicons/core-free-icons';
 
 interface WordLookupPanelProps {
     word: string;
@@ -107,10 +109,13 @@ export function WordLookupPanel({ word, open, onClose }: WordLookupPanelProps) {
 
     const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
     const wikiUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(query)}`;
-    const wiktionaryUrl = `https://en.wiktionary.org/wiki/${encodeURIComponent(query.toLowerCase())}`;
     const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
     const jishoUrl = `https://jisho.org/search/${encodeURIComponent(query)}`;
+    const jdictUrl = `https://jdict.net/search?keyword=${encodeURIComponent(query)}`;
+    const krdictUrl = `https://krdict.korean.go.kr/eng/dicMarinerSearch/search?mainSearchWord=${encodeURIComponent(query)}`;
+    const naverDictUrl = `https://korean.dict.naver.com/koendict/#/search?query=${encodeURIComponent(query)}`;
     const isLikelyJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(query);
+    const isLikelyKorean = /[\uAC00-\uD7AF]/.test(query);
 
     return (
         <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -218,13 +223,17 @@ export function WordLookupPanel({ word, open, onClose }: WordLookupPanelProps) {
                         {(state.status === 'dict' || state.status === 'wiki' || state.status === 'not-found') && (
                             <div className="pt-2 border-t space-y-2">
                                 <p className="text-xs text-muted-foreground font-medium pb-1">Search online</p>
-                                <SearchLink href={googleUrl} label={t.searchGoogle} icon="🔍" />
-                                <SearchLink href={wikiUrl} label={t.searchWikipedia} icon="📖" />
-                                <SearchLink href={wiktionaryUrl} label="Wiktionary" icon="📚" />
-                                {isLikelyJapanese && (
-                                    <SearchLink href={jishoUrl} label="Jisho (Japanese)" icon="🇯🇵" />
-                                )}
-                                <SearchLink href={youtubeUrl} label={t.searchYouTube} icon="▶" />
+                                <SearchLink href={googleUrl} label={t.searchGoogle} icon={GoogleIcon} />
+                                <SearchLink href={wikiUrl} label={t.searchWikipedia} icon={BookSearchIcon} />
+                                {isLikelyJapanese && (<>
+                                    <SearchLink href={jishoUrl} label="Jisho (Japanese)" icon={AlphabetJapaneseIcon} />
+                                    <SearchLink href={jdictUrl} label="Jdict (Japanese)" icon={AlphabetJapaneseIcon} />
+                                </>)}
+                                {isLikelyKorean && (<>
+                                    <SearchLink href={krdictUrl} label="Krdict (Korean)" icon={AlphabetKoreanIcon} />
+                                    <SearchLink href={naverDictUrl} label="Naver Dict (Korean)" icon={AlphabetKoreanIcon} />
+                                </>)}
+                                <SearchLink href={youtubeUrl} label={t.searchYouTube} icon={YoutubeIcon} />
                             </div>
                         )}
 
@@ -235,7 +244,7 @@ export function WordLookupPanel({ word, open, onClose }: WordLookupPanelProps) {
     );
 }
 
-function SearchLink({ href, label, icon }: { href: string; label: string; icon: string }) {
+function SearchLink({ href, label, icon }: { href: string; label: string; icon: IconSvgElement }) {
     return (
         <a
             href={href}
@@ -243,7 +252,7 @@ function SearchLink({ href, label, icon }: { href: string; label: string; icon: 
             rel="noreferrer"
             className="flex items-center gap-2.5 px-3 py-2 rounded-md border hover:bg-muted/40 transition-colors text-sm"
         >
-            <span className="text-base w-5 text-center">{icon}</span>
+            <HugeiconsIcon icon={icon} />
             <span>{label}</span>
             <span className="ml-auto text-muted-foreground text-xs">↗</span>
         </a>

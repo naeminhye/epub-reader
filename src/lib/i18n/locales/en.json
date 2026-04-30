@@ -164,6 +164,10 @@
     "highlightEmpty": "No highlights yet",
     "highlightOverlap": "Highlight overlap",
     "translationEdited": "Translation updated",
+    "editTranslation": "Edit translation",
+    "removeTranslation": "Remove translation",
+    "translationResult": "Translation results",
+    "translateHere": "Translate here",
     "toolbar": "Toolbar",
     "toolbarPersistent": "Always show toolbar",
     "toolbarFloating": "Float toolbar"

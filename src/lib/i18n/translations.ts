@@ -168,6 +168,10 @@ function buildTranslations(raw: RawLocale) {
         highlightEmpty: raw.highlightEmpty,
         highlightOverlap: raw.highlightOverlap,
         translationEdited: raw.translationEdited,
+        editTranslation: raw.editTranslation,
+        removeTranslation: raw.removeTranslation,
+        translationResult: raw.translationResult,
+        translateHere: raw.translateHere,
 
         // ── Interpolated strings (converted to functions) ───────────────────
         libraryBookCount: (n: number) => interp(raw.libraryBookCount, { n }),

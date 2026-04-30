@@ -164,6 +164,10 @@
     "highlightEmpty": "Chưa có đánh dấu nào.",
     "highlightOverlap": "Đánh dấu trang bị trùng.",
     "translationEdited": "Đã cập nhật bản dịch",
+    "editTranslation": "Chỉnh sửa bản dịch",
+    "removeTranslation": "Xóa bản dịch",
+    "translationResult": "Kết quả dịch",
+    "translateHere": "Dịch tại đây",
     "toolbar": "Thanh công cụ",
     "toolbarPersistent": "Luôn hiển thị thanh công cụ",
     "toolbarFloating": "Thanh công cụ nổi"

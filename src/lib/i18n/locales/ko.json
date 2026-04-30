@@ -164,6 +164,10 @@
     "highlightEmpty": "아직 하이라이트가 없습니다.",
     "highlightOverlap": "하이라이트 겹침",
     "translationEdited": "번역 수정됨",
+    "editTranslation": "번역 수정",
+    "removeTranslation": "번역 제거",
+    "translationResult": "번역 결과",
+    "translateHere": "여기에서 번역",
     "toolbar": "툴바",
     "toolbarPersistent": "툴바 항상 표시",
     "toolbarFloating": "툴바 떠있기"

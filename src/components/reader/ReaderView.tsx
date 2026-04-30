@@ -5,7 +5,6 @@ import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 import { useIframeInteraction, putTranslationInDoc } from '@/hooks/useIframeInteraction';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { useHighlights } from '@/hooks/useHighlights';
-import type { IframeMessage } from '@/hooks/useIframeInteraction';
 import type { HighlightColor } from '@/hooks/useHighlights';
 import { ReaderToolbar } from './ReaderToolbar';
 import { AnnotationsPanel } from './AnnotationsPanel';
@@ -21,7 +20,6 @@ import { Button } from '@/components/ui/button';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowLeft01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
-import { translate } from '@/lib/translation/client';
 import type { LocationChangeHandler, SelectionHandler } from '@/lib/epub/useEpubReader';
 
 export function ReaderView() {
@@ -101,16 +99,12 @@ export function ReaderView() {
             await removeBookmark(existing.id);
             toast.success(t.bookmarkRemoved);
         } else {
-            // Get visible text snippet for the bookmark label
             const iframe = containerRef.current?.querySelector('iframe') as HTMLIFrameElement | null;
             const visibleText = iframe?.contentDocument?.body?.innerText?.trim().slice(0, 80) ?? currentCfi;
             const chapterTitle = toc.find(item => item.href && currentCfi.includes(item.id ?? ''))?.label?.trim();
             const result = await addBookmark(currentCfi, visibleText, chapterTitle);
-            if (result.limitReached) {
-                toast.warning(t.bookmarkLimit);
-            } else if (result.added) {
-                toast.success(t.bookmarkAdded);
-            }
+            if (result.limitReached) toast.warning(t.bookmarkLimit);
+            else if (result.added) toast.success(t.bookmarkAdded);
         }
     }, [currentCfi, bookmarks, removeBookmark, addBookmark, t, toc]);
 
@@ -121,13 +115,27 @@ export function ReaderView() {
         if (!selection?.cfiRange || !selection.text) return;
         const result = await addHighlight(selection.cfiRange, selection.text, color);
         if (!result) return;
-        if (result.overlap) {
-            toast.warning(t.highlightOverlap);
-        } else if (result.added) {
-            toast.success(t.highlightAdded);
-        }
+        if (result.overlap) toast.warning(t.highlightOverlap);
+        else if (result.added) toast.success(t.highlightAdded);
         setSelection(null);
     }, [selection, addHighlight, t, setSelection]);
+
+    // ── Inline "Translate here" injection ─────────────────────────
+    // After SelectionPopover gets a translation result, inject it into the iframe
+    // as a .aurobie-trans-block div below the selected paragraph.
+    const handleInjectTranslation = useCallback((text: string, _cfiRange: string) => {
+        const iframe = containerRef.current?.querySelector('iframe') as HTMLIFrameElement | null;
+        const doc = iframe?.contentDocument;
+        if (!doc) return;
+
+        // Find the currently selected element (or its nearest block ancestor)
+        const sel = doc.getSelection();
+        const anchorEl = sel?.anchorNode?.nodeType === Node.TEXT_NODE
+            ? sel.anchorNode.parentElement
+            : sel?.anchorNode as Element | null;
+
+        putTranslationInDoc(doc, text, anchorEl);
+    }, []);
 
     // ── Auto-translate ────────────────────────────────────────────
     const { translatePage, clearTranslations, updateVisibility, cancel, state: autoState } = useAutoTranslate({
@@ -143,56 +151,9 @@ export function ReaderView() {
 
     const currentDocRef = useRef<Document | null>(null);
 
+    const { injectIntoDocument } = useIframeInteraction({ enabled: true });
 
-    const { injectIntoDocument } = useIframeInteraction({
-        enabled: true,
-        onMessage: useCallback((msg: IframeMessage) => {
-            switch (msg.type) {
-                case 'translate-para':
-                    setSelection({ text: msg.text, cfiRange: '', rect: msg.rect as DOMRect });
-                    setTranslationPanelOpen(true);
-                    break;
-                case 'manual-translate':
-                    handleManualTranslateRef.current?.(msg.text, msg.paraId);
-                    break;
-                case 'edit-translation':
-                    toast.success(t.translationEdited);
-                    break;
-                case 'remove-translation':
-                    break;
-            }
-            // eslint-disable-next-line react-hooks/exhaustive-deps
-        }, [setSelection, setTranslationPanelOpen, t]),
-    });
-
-    // Use a ref so handleManualTranslate can be called from the stable onMessage callback
-    const handleManualTranslateRef = useRef<((text: string, paraId: string) => void) | null>(null);
-
-    // Build the stable onMessage ref that putTranslationInDoc needs
-    const putTransOnMessageRef = useRef((msg: IframeMessage) => {
-        if (msg.type === 'edit-translation') toast.success(t.translationEdited);
-    });
-    useEffect(() => {
-        putTransOnMessageRef.current = (msg: IframeMessage) => {
-            if (msg.type === 'edit-translation') toast.success(t.translationEdited);
-        };
-    }, [t]);
-
-    const handleManualTranslate = useCallback(async (text: string, paraId: string) => {
-        const iframe = containerRef.current?.querySelector('iframe') as HTMLIFrameElement | null;
-        const doc = iframe?.contentDocument;
-        if (!doc) return;
-        try {
-            const result = await translate({ text, targetLang: prefs.targetLang ?? 'vi', bookId: currentBook?.id });
-            putTranslationInDoc(doc, paraId, result.translation, putTransOnMessageRef);
-        } catch (err) {
-            toast.error(err instanceof Error ? err.message : String(err));
-        }
-    }, [prefs.targetLang, currentBook?.id]);
-
-    handleManualTranslateRef.current = handleManualTranslate;
-
-    // Auto-translate + inject interaction on every render
+    // Auto-translate + inject CSS on every render
     useEffect(() => {
         if (!isReady || !rendition) return;
         const handler = (_: unknown, view: unknown) => {
@@ -276,7 +237,6 @@ export function ReaderView() {
         <div
             className="fixed inset-0 flex flex-col z-50"
             style={{ background: 'var(--paper)', color: 'var(--ink)' }}
-            // Floating mode: click anywhere on the reading area to wake chrome
             onClick={isFloating && !showChrome ? wakeChrome : undefined}
         >
             {/* Persistent toolbar */}
@@ -303,10 +263,7 @@ export function ReaderView() {
                 </div>
             )}
 
-            <main
-                className="flex-1 relative overflow-hidden"
-                onClick={isFloating ? wakeChrome : undefined}
-            >
+            <main className="flex-1 relative overflow-hidden" onClick={isFloating ? wakeChrome : undefined}>
                 {/* Floating toolbar */}
                 {isFloating && (
                     <div style={{
@@ -352,7 +309,7 @@ export function ReaderView() {
                     </div>
                 )}
 
-                {/* Page nav arrows (paginated) */}
+                {/* Page nav arrows */}
                 {isReady && isPaginated && showNav && (
                     <>
                         <button type="button" aria-label={t.prevPage} onClick={prev}
@@ -369,8 +326,7 @@ export function ReaderView() {
                 )}
             </main>
 
-            {/* ── Persistent-mode footers ── */}
-            {/* Paginated */}
+            {/* ── Footers ── */}
             {!isFloating && isReady && showNav && (
                 <div className="hidden sm:flex items-center justify-center gap-4 py-2 border-t shrink-0" style={{ background: 'var(--paper)', borderColor: 'var(--line)' }}>
                     <Button variant="ghost" size="sm" onClick={prev} className="h-8 px-4 gap-1.5 text-xs">
@@ -387,15 +343,8 @@ export function ReaderView() {
                 </div>
             )}
 
-            {/* ── Floating mode footers ── */}
             {isFloating && isReady && (
-                <FloatingNavBar
-                    visible={showChrome}
-                    prev={prev}
-                    next={next}
-                    pageInfo={pageInfo}
-                    isPaginated={isPaginated}
-                />
+                <FloatingNavBar visible={showChrome} prev={prev} next={next} pageInfo={pageInfo} isPaginated={isPaginated} />
             )}
 
             {/* ── Panels ── */}
@@ -406,6 +355,7 @@ export function ReaderView() {
                 onStudy={handleStudy}
                 onHighlight={handleHighlight}
                 onDismiss={handleDismiss}
+                onInjectTranslation={handleInjectTranslation}
             />
             <TranslationPanel onOpenSettings={() => setTranslationSettingsOpen(true)} />
             <SearchPanel onSearch={search} onGoTo={goTo} />
@@ -427,7 +377,6 @@ export function ReaderView() {
     );
 }
 
-// // ── Floating progress pill ────────────────────────────────────────
 function FloatingNavBar({ visible, prev, next, pageInfo, isPaginated }: {
     visible: boolean;
     prev: () => void;
@@ -437,36 +386,30 @@ function FloatingNavBar({ visible, prev, next, pageInfo, isPaginated }: {
 }) {
     const t = useT();
     return (
-
-        <div className="flex items-center justify-between px-4 py-2 shrink-0 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-40"
-            style={{
-                borderColor: 'var(--line)',
-                position: 'absolute', left: 16, right: 16, bottom: 16, zIndex: 40,
-                display: 'flex', alignItems: 'center', gap: 16, padding: '10px 18px',
-                backdropFilter: 'blur(20px) saturate(160%)',
-                WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-                border: '.5px solid var(--line-2)',
-                borderRadius: 14, overflow: 'hidden',
-                boxShadow: '0 12px 40px -16px rgba(0,0,0,.18)', cursor: 'pointer',
-                opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(8px)',
-                transition: 'opacity .35s, transform .35s',
-            }}
-        >
+        <div style={{
+            position: 'absolute', left: 16, right: 16, bottom: 16, zIndex: 40,
+            display: 'flex', alignItems: 'center', gap: 16, padding: '10px 18px',
+            background: 'color-mix(in oklch, var(--paper) 88%, transparent)',
+            backdropFilter: 'blur(20px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+            border: '.5px solid var(--line-2)', borderRadius: 14, overflow: 'hidden',
+            boxShadow: '0 12px 40px -16px rgba(0,0,0,.18)',
+            opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(8px)',
+            transition: 'opacity .35s, transform .35s',
+        }}>
             <Button variant="ghost" size="sm" onClick={prev} className="h-8 gap-1.5 text-xs">
                 <HugeiconsIcon icon={ArrowLeft01Icon} size={14} />
                 <span className="hidden sm:inline">{isPaginated ? t.prev : t.prevChapter}</span>
             </Button>
-            <span className="text-xs" style={{ color: 'var(--ink-3)' }}>{isPaginated ? t.paginatedMode : t.scrollMode}</span>
-
-            {pageInfo && pageInfo.total > 1 && (
-                <span className="text-xs" style={{ color: 'var(--ink-3)' }}>
-                    {t.locationOfCurrentPage(pageInfo.page, pageInfo.total)}
-                </span>
-            )}
+            <span className="flex-1 text-center text-xs" style={{ color: 'var(--ink-3)' }}>
+                {pageInfo && pageInfo.total > 1
+                    ? t.locationOfCurrentPage(pageInfo.page, pageInfo.total)
+                    : isPaginated ? t.paginatedMode : t.scrollMode}
+            </span>
             <Button variant="ghost" size="sm" onClick={next} className="h-8 gap-1.5 text-xs">
                 <span className="hidden sm:inline">{isPaginated ? t.next : t.nextChapter}</span>
                 <HugeiconsIcon icon={ArrowRight01Icon} size={14} />
             </Button>
-        </div >
+        </div>
     );
 }

@@ -159,6 +159,8 @@
     "bookmarkRemoved": "Bookmark removed",
     "bookmarkLimit": "Bookmark limit reached",
     "highlights": "Highlights",
+    "addHighlights": "Add highlights",
+    "removeHighlights": "Remove highlights",
     "highlightAdded": "Highlight added",
     "highlightRemoved": "Highlight removed",
     "highlightEmpty": "No highlights yet",

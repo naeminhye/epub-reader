@@ -163,6 +163,8 @@ function buildTranslations(raw: RawLocale) {
         bookmarkRemoved: raw.bookmarkRemoved,
         bookmarkLimit: raw.bookmarkLimit,
         highlights: raw.highlights,
+        addHighlights: raw.addHighlights,
+        removeHighlights: raw.removeHighlights,
         highlightAdded: raw.highlightAdded,
         highlightRemoved: raw.highlightRemoved,
         highlightEmpty: raw.highlightEmpty,

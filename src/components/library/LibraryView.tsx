@@ -71,18 +71,19 @@ export function LibraryView() {
 
     return (
         <div style={{ background: 'var(--paper)', minHeight: '100vh', color: 'var(--ink)' }}>
-            <div style={{ maxWidth: 1320, margin: '0 auto', padding: '48px 56px 120px' }}>
+            <div style={{ maxWidth: 1320, margin: '0 auto', padding: 'clamp(20px, 5vw, 48px) clamp(16px, 5vw, 56px) 120px' }}>
 
                 {/* Header */}
                 <div style={{ marginBottom: 28 }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 24, marginBottom: 32, flexWrap: 'wrap' }}>
+                    {/* <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 24, marginBottom: 32, flexWrap: 'wrap' }}> */}
+                    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 32, flexWrap: 'wrap' }}>
                         {/* Left: eyebrow + title */}
                         <div>
                             <p className="eyebrow" style={{ marginBottom: 6 }}>
                                 {isLoading ? t.libraryLoading : t.libraryBookCount(books.length).toUpperCase()}
                             </p>
                             <h1 style={{
-                                fontFamily: 'var(--serif)', fontSize: 52, lineHeight: 1.05,
+                                fontFamily: 'var(--serif)', fontSize: 'clamp(32px, 8vw, 52px)', lineHeight: 1.05,
                                 margin: 0, fontWeight: 500, letterSpacing: '-.01em',
                                 fontStyle: 'italic', whiteSpace: 'nowrap', color: 'var(--ink)',
                             }}>
@@ -91,12 +92,13 @@ export function LibraryView() {
                         </div>
 
                         {/* Right: search + global controls */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', width: '100%' }}>
+
                             {/* Search pill */}
                             <div style={{
                                 display: 'flex', alignItems: 'center', gap: 8,
                                 background: 'var(--paper-2)', border: '.5px solid var(--line-2)',
-                                borderRadius: 999, padding: '9px 14px', minWidth: 280,
+                                borderRadius: 999, padding: '9px 14px', minWidth: 'min(280px, 100%)',
                                 color: 'var(--ink-3)',
                             }}>
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -157,7 +159,7 @@ export function LibraryView() {
                     {/* Toolbar */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, paddingBottom: 18, borderBottom: '.5px solid var(--line)' }}>
                         {/* Filter chips */}
-                        <div style={{ display: 'flex', gap: 4 }}>
+                        <div style={{ display: 'flex', gap: 4, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
                             {(['all', 'reading', 'new', 'done'] as Filter[]).map(f => {
                                 const count = f === 'all' ? books.length : counts[f];
                                 const isOn = filter === f;
@@ -206,7 +208,7 @@ export function LibraryView() {
                 {/* Body */}
                 <div style={{ paddingTop: 32 }}>
                     {layout === 'grid' ? (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '36px 24px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 'clamp(20px, 4vw, 36px) clamp(12px, 3vw, 24px)' }}>
                             {filtered.map(book => (
                                 <BookCard key={book.id} book={book} onOpen={openBook} onDelete={removeBook} />
                             ))}
@@ -264,10 +266,14 @@ function ContinueCard({ book, onOpen }: { book: Book; onOpen: (b: Book) => void 
         <div onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 18px 40px -20px rgba(0,0,0,.18)'; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = ''; (e.currentTarget as HTMLElement).style.boxShadow = ''; }}
             className='continue-card'
-            style={{ gridTemplateColumns: recentHighlight ? '156px 1fr 280px' : '156px 1fr' }}
-        >
+            style={{
+                gridTemplateColumns: recentHighlight
+                    ? 'min(156px, 30vw) 1fr clamp(180px, 25vw, 280px)'
+                    : 'min(156px, 30vw) 1fr'
+            }}>
             <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(800px 200px at 100% 0%, var(--accent-glow), transparent 60%)', opacity: .35 }} />
-            <div style={{ width: 156, height: 232, flexShrink: 0, cursor: 'pointer' }} onClick={() => onOpen(book)}>
+            <div style={{ width: 'min(156px, 30vw)', height: 'min(232px, 45vw)', flexShrink: 0, cursor: 'pointer' }}
+                onClick={() => onOpen(book)}>
                 {coverUrl
                     ? <img src={coverUrl} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4, boxShadow: '0 1px 0 rgba(255,255,255,.06) inset, -2px 0 0 rgba(0,0,0,.18) inset, 0 14px 32px -8px rgba(0,0,0,.35)' }} />
                     : <PlaceholderCover title={book.title} width={156} height={232} />}
@@ -277,7 +283,8 @@ function ContinueCard({ book, onOpen }: { book: Book; onOpen: (b: Book) => void 
                     <span style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--accent)', boxShadow: '0 0 0 4px var(--accent-glow)', display: 'inline-block' }} className="animate-pulse-led" />
                     {t.continueReading}{lastRead ? ` · ${lastRead}` : ''}
                 </div>
-                <h2 onClick={() => onOpen(book)} style={{ fontFamily: 'var(--serif)', fontSize: 38, lineHeight: 1.05, margin: 0, fontStyle: 'italic', fontWeight: 500, letterSpacing: '-.01em', color: 'var(--ink)', cursor: 'pointer' }}>
+                <h2 onClick={() => onOpen(book)}
+                    style={{ fontFamily: 'var(--serif)', fontSize: 'clamp(22px, 5vw, 38px)', lineHeight: 1.05, margin: 0, fontStyle: 'italic', fontWeight: 500, letterSpacing: '-.01em', color: 'var(--ink)', cursor: 'pointer' }}>
                     {book.title}
                 </h2>
                 <p style={{ fontSize: 13, color: 'var(--ink-3)', letterSpacing: '.04em', textTransform: 'uppercase', fontWeight: 500 }}>{book.author}</p>

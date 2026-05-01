@@ -159,6 +159,8 @@
     "bookmarkRemoved": "Đã xóa đánh dấu trang",
     "bookmarkLimit": "Đã đạt giới hạn đánh dấu trang",
     "highlights": "Hightlights",
+    "addHighlights": "Thêm highlights",
+    "removeHighlights": "Xóa highlights",
     "highlightAdded": "Đã thêm đánh dấu",
     "highlightRemoved": "Đã xóa đánh dấu",
     "highlightEmpty": "Chưa có đánh dấu nào.",

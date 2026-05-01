@@ -159,6 +159,8 @@
     "bookmarkRemoved": "북마크 제거됨",
     "bookmarkLimit": "북마크 한도에 도달했습니다.",
     "highlights": "하이라이트",
+    "addHighlights": "하이라이트 추가",
+    "removeHighlights": "하이라이트 제거",
     "highlightAdded": "하이라이트 추가됨",
     "highlightRemoved": "하이라이트 제거됨",
     "highlightEmpty": "아직 하이라이트가 없습니다.",

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useReaderStore } from '@/stores/readerStore';
 import { useEpubReader } from '@/lib/epub/useEpubReader';
 import { useAutoTranslate } from '@/hooks/useAutoTranslate';
@@ -233,6 +233,32 @@ export function ReaderView() {
         />
     );
 
+    const activeHighlight = useMemo(() => {
+        if (!selection?.cfiRange || !rendition) return null;
+
+        // Use the live DOM: check if the current selection range contains any highlight marks
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const range: Range | null = (rendition as any).getRange?.(selection.cfiRange) ?? null;
+            if (!range) return null;
+
+            const fragment = range.cloneContents();
+            const markEl = fragment.querySelector('.aurobie-hl');
+            if (!markEl) return null;
+
+            // Extract the highlight ID from the class list: aurobie-hl-{id}
+            const hlClass = [...markEl.classList].find(c => c.startsWith('aurobie-hl-') && c !== 'aurobie-hl');
+            if (!hlClass) return null;
+
+            const id = hlClass.replace('aurobie-hl-', '');
+            return highlights.find(h => h.id === id) ?? null;
+        } catch {
+            return null;
+        }
+    }, [selection?.cfiRange, highlights, rendition]);
+
+    console.log('activeHighlight', activeHighlight);
+
     return (
         <div
             className="fixed inset-0 flex flex-col z-50"
@@ -313,12 +339,12 @@ export function ReaderView() {
                 {isReady && isPaginated && showNav && (
                     <>
                         <button type="button" aria-label={t.prevPage} onClick={prev}
-                            className="absolute left-0 top-0 bottom-0 w-12 z-10 flex items-center justify-center opacity-0 hover:opacity-100 active:opacity-100 transition-opacity"
+                            className="absolute left-0 top-0 bottom-0 w-16 sm:w-12 z-10 flex items-center justify-center opacity-0 hover:opacity-100 active:opacity-100 transition-opacity"
                             style={{ background: 'linear-gradient(to right, color-mix(in oklch, var(--paper) 40%, transparent), transparent)' }}>
                             <HugeiconsIcon icon={ArrowLeft01Icon} size={22} style={{ color: 'var(--ink-3)' }} />
                         </button>
                         <button type="button" aria-label={t.nextPage} onClick={next}
-                            className="absolute right-0 top-0 bottom-0 w-12 z-10 flex items-center justify-center opacity-0 hover:opacity-100 active:opacity-100 transition-opacity"
+                            className="absolute right-0 top-0 bottom-0 w-16 sm:w-12 z-10 flex items-center justify-center opacity-0 hover:opacity-100 active:opacity-100 transition-opacity"
                             style={{ background: 'linear-gradient(to left, color-mix(in oklch, var(--paper) 40%, transparent), transparent)' }}>
                             <HugeiconsIcon icon={ArrowRight01Icon} size={22} style={{ color: 'var(--ink-3)' }} />
                         </button>
@@ -354,6 +380,8 @@ export function ReaderView() {
                 onDefine={handleDefine}
                 onStudy={handleStudy}
                 onHighlight={handleHighlight}
+                onRemoveHighlight={activeHighlight ? () => removeHighlight(activeHighlight.id) : undefined}
+                activeHighlightColor={activeHighlight?.color}
                 onDismiss={handleDismiss}
                 onInjectTranslation={handleInjectTranslation}
             />

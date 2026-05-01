@@ -2,7 +2,7 @@ import { useLayoutEffect, useEffect, useRef, useState, useCallback } from 'react
 import { Button } from '@/components/ui/button';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { useT } from '@/lib/i18n/context';
-import { BookOpenIcon, Cancel01Icon, TranslateIcon, NoteEditIcon, NoteRemoveIcon, HighlighterIcon, NoteAddIcon, AArrowDownIcon } from '@hugeicons/core-free-icons';
+import { BookOpenIcon, Cancel01Icon, TranslateIcon, NoteEditIcon, NoteRemoveIcon, HighlighterIcon, NoteAddIcon, AArrowDownIcon, Delete02Icon, UnavailableIcon } from '@hugeicons/core-free-icons';
 import type { SelectionInfo } from '@/lib/epub/useEpubReader';
 import type { HighlightColor } from '@/hooks/useHighlights';
 import { translate } from '@/lib/translation/client';
@@ -14,6 +14,8 @@ interface SelectionPopoverProps {
     onDefine: () => void;
     onStudy: () => void;
     onHighlight: (color: HighlightColor) => void;
+    onRemoveHighlight?: () => void;
+    activeHighlightColor?: HighlightColor;
     onDismiss: () => void;
     /** Called after "Translate here" produces a result — caller injects it below the paragraph */
     onInjectTranslation?: (text: string, cfiRange: string) => void;
@@ -39,6 +41,8 @@ export function SelectionPopover({
     onHighlight,
     onDismiss,
     onInjectTranslation,
+    onRemoveHighlight,
+    activeHighlightColor
 }: SelectionPopoverProps) {
     const t = useT();
     const prefs = useReaderStore(s => s.prefs);
@@ -189,6 +193,23 @@ export function SelectionPopover({
                         <div className="w-px h-4 bg-border mx-0.5" />
 
                         {/* Highlight toggle */}
+                        {/* {activeHighlightColor ? (
+                            // Already highlighted — show remove button
+                            <Button variant="ghost" size="sm"
+                                onClick={() => { onRemoveHighlight?.(); onDismiss(); }}
+                                className="h-8 w-8 p-0"
+                                title={t.removeHighlights}
+                                style={{ color: HIGHLIGHT_COLORS.find(c => c.color === activeHighlightColor)?.bg }}>
+                                <HugeiconsIcon icon={HighlighterIcon} />
+                            </Button>
+                        ) : (
+                            // Not highlighted — show color picker toggle
+                            <Button variant={showColors ? 'secondary' : 'ghost'} size="sm"
+                                onClick={() => setShowColors(s => !s)}
+                                className="h-8 w-8 p-0" title={t.highlight}>
+                                <HugeiconsIcon icon={HighlighterIcon} />
+                            </Button>
+                        )} */}
                         <Button variant={showColors ? 'secondary' : 'ghost'} size="sm"
                             onClick={() => setShowColors(s => !s)}
                             className="h-8 w-8 p-0" title={t.highlight}>
@@ -212,6 +233,31 @@ export function SelectionPopover({
                 {/* Color picker row */}
                 {showColors && mode === 'actions' && (
                     <div className="flex items-center justify-center gap-3 px-3 pb-2.5 pt-1 border-t">
+                        {activeHighlightColor && (
+                            // Already highlighted — show remove button
+                            <button
+                                key="remove-highlight"
+                                type="button"
+                                title={t.removeHighlights}
+                                onClick={() => { onRemoveHighlight?.(); onDismiss(); }}
+                                style={{
+                                    width: 22, height: 22, borderRadius: '50%',
+                                    background: "white",
+                                    cursor: 'pointer',
+                                    transition: 'transform .15s, border-color .15s',
+                                }}
+                                onMouseEnter={e => {
+                                    (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.25)';
+                                    (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--foreground)';
+                                }}
+                                onMouseLeave={e => {
+                                    (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
+                                    (e.currentTarget as HTMLButtonElement).style.borderColor = 'transparent';
+                                }}
+                            >
+                                <HugeiconsIcon icon={UnavailableIcon} size={22} />
+                            </button>
+                        )}
                         {HIGHLIGHT_COLORS.map(({ color, bg, label }) => (
                             <button
                                 key={color}

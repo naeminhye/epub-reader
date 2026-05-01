@@ -453,7 +453,7 @@ function bindSelection(
 ) {
     let timer: number | undefined;
 
-    const handler = () => {
+    const fire = (delay: number) => {
         clearTimeout(timer);
         timer = window.setTimeout(() => {
             const sel = doc.getSelection();
@@ -474,12 +474,11 @@ function bindSelection(
                 height: rangeRect.height,
             };
 
-            // Read CFI from the ref — written by epubjs's 'selected' event which
-            // fires reliably with a valid CFI whenever the user finishes selecting.
             const cfiRange = cfiRangeRef.current;
+            if (!cfiRange) { callback(null); return; }
 
             callback({ text, cfiRange, rect });
-        }, 200);
+        }, delay);
     };
 
     const clearHandler = () => {
@@ -490,9 +489,18 @@ function bindSelection(
         }, 50);
     };
 
-    doc.addEventListener('selectionchange', handler);
-    doc.addEventListener('mouseup', handler);
-    doc.addEventListener('touchend', handler);
+    // Mouse: 200ms is enough — epubjs 'selected' fires synchronously with mouseup
+    doc.addEventListener('mouseup', () => fire(200));
+
+    // Touch: epubjs 'selected' fires after a microtask delay on touch,
+    // so we wait longer to ensure cfiRangeRef is populated
+    doc.addEventListener('touchend', () => fire(400));
+
+    // selectionchange can fire mid-drag — only use it as a fallback for mouse
+    doc.addEventListener('selectionchange', () => {
+        if (window.matchMedia('(pointer: fine)').matches) fire(200);
+    });
+
     doc.addEventListener('mousedown', clearHandler);
 }
 

@@ -116,6 +116,20 @@ export function TranslationSettingsPanel({ open, onClose }: TranslationSettingsP
                             )}
                         </section>
 
+                        {/* ── Target language ─────────────────────────────────────── */}
+                        <section className="space-y-3">
+                            <Label className="text-sm font-medium">{t.targetLanguage}</Label>
+                            <select
+                                value={prefs.targetLang ?? 'vi'}
+                                onChange={e => updatePrefs({ targetLang: e.target.value as typeof prefs.targetLang })}
+                                className="w-full text-sm border border-input rounded-md bg-background px-3 py-2 outline-none focus:ring-1 focus:ring-ring"
+                            >
+                                {(['vi', 'en', 'ko', 'zh', 'ja', 'fr', 'de', 'es'] as const).map(lang => (
+                                    <option key={lang} value={lang}>{t.targetLanguageName(lang)}</option>
+                                ))}
+                            </select>
+                        </section>
+
                         {/* ── AI / LLM providers ───────────────────────────────────── */}
                         <section className="space-y-3">
                             <Label className="text-sm font-medium">AI Translation</Label>

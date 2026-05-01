@@ -1,40 +1,21 @@
 import { Button } from '@/components/ui/button';
+import { Toggle } from '@/components/ui/toggle';
 import { Label } from '@/components/ui/label';
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
+    DropdownMenu, DropdownMenuContent, DropdownMenuLabel,
+    DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-    SheetTrigger,
-} from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useReaderStore } from '@/stores/readerStore';
 import { useLocale, useT } from '@/lib/i18n/context';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
-    ArrowLeft01Icon,
-    Menu02Icon,
-    Moon02Icon,
-    Sun01Icon,
-    BookOpenIcon,
-    SearchIcon,
-    CarouselVerticalIcon,
-    CarouselHorizontalIcon,
-    BorderAll02Icon,
-    LayoutTwoColumnIcon,
-    LanguageSquareIcon,
-    TranslateIcon,
-    TextFontIcon,
-    BookmarkAddIcon,
-    BookmarkRemoveIcon,
+    ArrowLeft01Icon, Menu02Icon, Moon02Icon, BookOpenIcon,
+    SearchIcon, TranslateIcon, Settings02Icon,
+    Sun03Icon,
+    SunCloud02Icon,
+    BookBookmark02Icon,
 } from '@hugeicons/core-free-icons';
 import type { NavItem } from 'epubjs';
 
@@ -63,7 +44,7 @@ export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen, onTra
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-40">
             <div className="flex items-center gap-1 px-2 py-2">
 
-                {/* Back to library */}
+                {/* Back */}
                 <Button variant="ghost" size="sm" onClick={closeBook} className="shrink-0 gap-1">
                     <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
                     <span className="hidden sm:inline text-xs">{t.library}</span>
@@ -90,21 +71,37 @@ export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen, onTra
                 </Sheet>
 
                 {/* Bookmark toggle */}
-                <Button
-                    variant={isBookmarked ? 'secondary' : 'ghost'}
-                    size="sm" className="shrink-0"
+                <Toggle
+                    pressed={isBookmarked}
+                    onPressedChange={onToggleBookmark}
+                    size="sm"
+                    className="shrink-0 p-0 w-8 h-8 hover:bg-transparent data-[state=on]:bg-transparent"
                     title={isBookmarked ? t.bookmarkRemove : t.bookmarkAdd}
-                    onClick={onToggleBookmark}
                 >
-                    <HugeiconsIcon icon={isBookmarked ? BookmarkRemoveIcon : BookmarkAddIcon} size={16} />
-                </Button>
+                    <svg width="16" height="20" viewBox="0 0 16 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        {isBookmarked ? (
+                            /* Filled ribbon */
+                            <path
+                                d="M1 1h14v16.5l-7-4-7 4V1z"
+                                fill="var(--accent)"
+                                stroke="var(--accent)"
+                                strokeWidth="1.5"
+                                strokeLinejoin="round"
+                            />
+                        ) : (
+                            /* Outline ribbon */
+                            <path
+                                d="M1 1h14v16.5l-7-4-7 4V1z"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.5"
+                                strokeLinejoin="round"
+                            />
+                        )}
+                    </svg>
+                </Toggle>
 
-                {/* Search */}
-                <Button variant="ghost" size="sm" className="shrink-0" onClick={onSearchOpen} title={t.search}>
-                    <HugeiconsIcon icon={SearchIcon} size={16} />
-                </Button>
-
-                {/* Center: title + page + progress tap target */}
+                {/* Center: title + progress tap target */}
                 <div
                     className="flex-1 min-w-0 px-1 text-center cursor-pointer hover:opacity-70 transition-opacity"
                     onClick={onProgressOpen}
@@ -113,6 +110,11 @@ export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen, onTra
                     <p className="text-xs text-muted-foreground truncate font-heading">{currentBook.title}</p>
                 </div>
 
+                {/* Search */}
+                <Button variant="ghost" size="sm" className="shrink-0" onClick={onSearchOpen} title={t.search}>
+                    <HugeiconsIcon icon={SearchIcon} size={16} />
+                </Button>
+
                 {/* Translation settings */}
                 <Button variant="ghost" size="sm" className="shrink-0" title={t.translationSettings} onClick={onTranslationSettings}>
                     <HugeiconsIcon icon={TranslateIcon} />
@@ -120,66 +122,106 @@ export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen, onTra
 
                 {/* Bookmarks list */}
                 <Button variant="ghost" size="sm" className="shrink-0" title={t.bookmarks} onClick={onBookmarksOpen}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" /></svg>
+                    <HugeiconsIcon icon={BookBookmark02Icon} />
                 </Button>
 
-                {/* Flow mode toggle */}
-                <Button variant="ghost" size="sm" className="shrink-0"
-                    title={isPaginated ? t.switchToScroll : t.switchToPages}
-                    onClick={() => updatePrefs({ flowMode: isPaginated ? 'scrolled' : 'paginated' })}>
-                    {isPaginated
-                        ? <HugeiconsIcon icon={CarouselHorizontalIcon} />
-                        : <HugeiconsIcon icon={CarouselVerticalIcon} />}
-                </Button>
-
-                {/* Spread toggle — paginated only */}
-                {isPaginated && (
-                    <Button variant="ghost" size="sm" className="shrink-0"
-                        onClick={() => updatePrefs({ spread: isSpread ? 'none' : 'auto' })}>
-                        {isSpread
-                            ? <HugeiconsIcon icon={LayoutTwoColumnIcon} />
-                            : <HugeiconsIcon icon={BorderAll02Icon} />}
-                    </Button>
-                )}
-
-                {/* Theme toggle */}
-                <Button variant="ghost" size="sm" className="shrink-0"
-                    title={t.themeLabel(prefs.theme)}
-                    onClick={() => {
-                        const next = prefs.theme === 'light' ? 'sepia' : prefs.theme === 'sepia' ? 'dark' : 'light';
-                        updatePrefs({ theme: next });
-                    }}>
-                    <HugeiconsIcon icon={prefs.theme === 'dark' ? Moon02Icon : Sun01Icon} size={16} />
-                </Button>
-
-                {/* App UI language — dropdown */}
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="shrink-0 text-xs font-normal" title={t.language}>
-                            <HugeiconsIcon icon={LanguageSquareIcon} />
-                            {locale.toUpperCase()}
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        {(['en', 'vi', 'ko'] as const).map((l) => (
-                            <DropdownMenuItem key={l} onClick={() => setLocale(l)} className={locale === l ? 'bg-accent' : ''}>
-                                {l === 'en' ? 'English' : l === 'vi' ? 'Tiếng Việt' : '한국어'}
-                            </DropdownMenuItem>
-                        ))}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-
-                {/* Settings: typography + target language + toolbar variant */}
+                {/* Settings */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" className="shrink-0">
-                            <HugeiconsIcon icon={TextFontIcon} />
+                            <HugeiconsIcon icon={Settings02Icon} />
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-64 p-3">
-                        <DropdownMenuLabel className="font-heading">{t.typography}</DropdownMenuLabel>
+
+                        {/* ── Layout ── */}
+                        <DropdownMenuLabel className="font-heading text-xs px-1">{t.layout}</DropdownMenuLabel>
                         <DropdownMenuSeparator className="my-2" />
-                        <div className="space-y-3 py-1">
+
+                        {/* Flow mode — radio */}
+                        <div className="px-1 py-1 space-y-1.5">
+                            <span className="text-xs text-muted-foreground">{t.pageMode}</span>
+                            <div className="flex rounded-md border border-input overflow-hidden">
+                                {(['paginated', 'scrolled'] as const).map((mode, i) => (
+                                    <button
+                                        key={mode}
+                                        type="button"
+                                        onClick={() => updatePrefs({ flowMode: mode })}
+                                        className={`flex-1 text-xs py-1.5 transition-colors ${i === 0 ? '' : 'border-l border-input'}
+                                            ${prefs.flowMode === mode
+                                                ? 'bg-foreground text-background'
+                                                : 'bg-background text-foreground hover:bg-muted'
+                                            }`}
+                                    >
+                                        {mode === 'paginated' ? t.pages : t.scroll}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Spread — switch, paginated only */}
+                        {isPaginated && (
+                            <div className="flex items-center justify-between px-1 py-2">
+                                <span className="text-xs">{t.twoPageSpread}</span>
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={isSpread}
+                                    onClick={() => updatePrefs({ spread: isSpread ? 'none' : 'auto' })}
+                                    className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${isSpread ? 'bg-foreground' : 'bg-muted'}`}
+                                >
+                                    <span className={`inline-block h-4 w-4 rounded-full bg-background shadow transition-transform ${isSpread ? 'translate-x-4' : 'translate-x-0'}`} />
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Toolbar variant — radio */}
+                        <div className="px-1 py-1 space-y-1.5">
+                            <span className="text-xs text-muted-foreground">{t.toolbar}</span>
+                            <div className="flex rounded-md border border-input overflow-hidden">
+                                {(['persistent', 'floating'] as const).map((v, i) => (
+                                    <button
+                                        key={v}
+                                        type="button"
+                                        onClick={() => updatePrefs({ toolbarVariant: v })}
+                                        className={`flex-1 text-xs py-1.5 transition-colors ${i === 0 ? '' : 'border-l border-input'}
+                                            ${prefs.toolbarVariant === v
+                                                ? 'bg-foreground text-background'
+                                                : 'bg-background text-foreground hover:bg-muted'
+                                            }`}
+                                    >
+                                        {v === 'persistent' ? t.toolbarPersistent : t.toolbarFloating}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* ── Typography ── */}
+                        <DropdownMenuSeparator className="my-2" />
+                        <DropdownMenuLabel className="font-heading text-xs px-1">{t.typography}</DropdownMenuLabel>
+                        <DropdownMenuSeparator className="my-2" />
+
+                        {/* Font — select */}
+                        <div className="px-1 py-1 space-y-1.5">
+                            <span className="text-xs text-muted-foreground">{t.font}</span>
+                            <select
+                                value={prefs.readerFont}
+                                onChange={e => updatePrefs({ readerFont: e.target.value as typeof prefs.readerFont })}
+                                className="w-full text-xs border border-input rounded-sm bg-background px-2 py-1.5 outline-none focus:ring-1 focus:ring-ring"
+                            >
+                                {([
+                                    ['eb-garamond', t.fontEbGaramond],
+                                    ['merriweather', t.fontMerriweather],
+                                    ['montserrat', t.fontMontserrat],
+                                    ['public-sans', t.fontPublicSans],
+                                    ['system-serif', t.fontSystemSerif],
+                                ] as const).map(([val, label]) => (
+                                    <option key={val} value={val}>{label}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="space-y-3 px-1 py-1">
                             <FontSizeRow
                                 label={t.fontSize} value={prefs.fontSize}
                                 min={10} max={36} step={1}
@@ -196,38 +238,72 @@ export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen, onTra
                                 onChange={(v) => updatePrefs({ lineHeight: parseFloat(v.toFixed(1)) })}
                             />
                         </div>
+
+                        {/* ── Appearance ── */}
                         <DropdownMenuSeparator className="my-2" />
-                        <DropdownMenuLabel className="text-xs text-muted-foreground">{t.font}</DropdownMenuLabel>
-                        {([
-                            ['eb-garamond', t.fontEbGaramond],
-                            ['merriweather', t.fontMerriweather],
-                            ['montserrat', t.fontMontserrat],
-                            ['public-sans', t.fontPublicSans],
-                            ['system-serif', t.fontSystemSerif],
-                        ] as const).map(([val, label]) => (
-                            <DropdownMenuItem key={val} onClick={() => updatePrefs({ readerFont: val })}
-                                className={prefs.readerFont === val ? 'bg-accent' : ''}>
-                                {label}
-                            </DropdownMenuItem>
-                        ))}
+                        <DropdownMenuLabel className="font-heading text-xs px-1">{t.appearance}</DropdownMenuLabel>
                         <DropdownMenuSeparator className="my-2" />
-                        <DropdownMenuLabel className="text-xs text-muted-foreground">{t.targetLanguage}</DropdownMenuLabel>
-                        {(['vi', 'en', 'ko', 'zh', 'ja', 'fr', 'de', 'es'] as const).map((lang) => (
-                            <DropdownMenuItem key={lang} onClick={() => updatePrefs({ targetLang: lang })}
-                                className={prefs.targetLang === lang ? 'bg-accent' : ''}>
-                                {t.targetLanguageName(lang)}
-                            </DropdownMenuItem>
-                        ))}
-                        <DropdownMenuSeparator className="my-2" />
-                        <DropdownMenuLabel className="text-xs text-muted-foreground">{t.toolbar}</DropdownMenuLabel>
-                        {(['persistent', 'floating'] as const).map((v) => (
-                            <DropdownMenuItem key={v} onClick={() => updatePrefs({ toolbarVariant: v })}
-                                className={prefs.toolbarVariant === v ? 'bg-accent' : ''}>
-                                {v === 'persistent' ? t.toolbarPersistent : t.toolbarFloating}
-                            </DropdownMenuItem>
-                        ))}
+
+                        {/* Theme — radio */}
+                        <div className="px-1 py-1 space-y-1.5">
+                            <span className="text-xs text-muted-foreground">{t.theme}</span>
+                            <div className="flex rounded-md border border-input overflow-hidden">
+                                {(['light', 'sepia', 'dark'] as const).map((theme, i) => (
+                                    <button
+                                        key={theme}
+                                        type="button"
+                                        onClick={() => updatePrefs({ theme })}
+                                        className={`flex-1 text-xs py-1.5 transition-colors ${i === 0 ? '' : 'border-l border-input'}
+                                            ${prefs.theme === theme
+                                                ? 'bg-foreground text-background'
+                                                : 'bg-background text-foreground hover:bg-muted'
+                                            }`}
+                                    >
+                                        {theme === 'light' ?
+                                            <Button
+                                                variant="ghost"
+                                                className="p-0"
+                                                size="icon-sm"
+                                            >
+                                                <HugeiconsIcon icon={Sun03Icon} size={12} />
+                                            </Button> : theme === 'sepia' ?
+                                                <Button
+                                                    variant="ghost"
+                                                    className="p-0"
+                                                    size="icon-sm"
+                                                >
+                                                    <HugeiconsIcon icon={SunCloud02Icon} size={12} />
+                                                </Button> :
+                                                <Button
+                                                    variant="ghost"
+                                                    className="p-0"
+                                                    size="icon-sm"
+                                                >
+                                                    <HugeiconsIcon icon={Moon02Icon} size={12} />
+                                                </Button>
+                                        }
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Language — select */}
+                        <div className="px-1 py-1 space-y-1.5">
+                            <span className="text-xs text-muted-foreground">{t.language}</span>
+                            <select
+                                value={locale}
+                                onChange={e => setLocale(e.target.value as typeof locale)}
+                                className="w-full text-xs border border-input rounded-sm bg-background px-2 py-1.5 outline-none focus:ring-1 focus:ring-ring"
+                            >
+                                <option value="en">English</option>
+                                <option value="vi">Tiếng Việt</option>
+                                <option value="ko">한국어</option>
+                            </select>
+                        </div>
+
                     </DropdownMenuContent>
                 </DropdownMenu>
+
             </div>
 
             {/* Progress bar */}

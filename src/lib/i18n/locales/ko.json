@@ -65,6 +65,8 @@
     "original": "원문",
     "copy": "복사",
     "copied": "복사됨",
+    "edit": "수정",
+    "remove": "제거",
     "couldNotCopy": "복사할 수 없습니다",
     "retry": "다시 시도",
     "translatedBy": "{model}(으)로 번역됨",

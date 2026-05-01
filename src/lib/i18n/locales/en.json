@@ -65,6 +65,8 @@
     "original": "Original",
     "copy": "Copy",
     "copied": "Copied",
+    "edit": "Edit",
+    "remove": "Remove",
     "couldNotCopy": "Could not copy",
     "retry": "Retry",
     "translatedBy": "Translated by {model}",

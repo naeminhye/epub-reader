@@ -13,8 +13,9 @@ import { ReadingProgressPanel } from './ReadingProgressPanel';
 import { StudyPanel } from './StudyPanel';
 import { WordLookupPanel } from '@/components/translation/WordLookupPanel';
 import { SelectionPopover } from '@/components/translation/SelectionPopover';
-import { TranslationPanel } from '@/components/translation/TranslationPanel';
+// import { TranslationPanel } from '@/components/translation/TranslationPanel';
 import { TranslationSettingsPanel } from '@/components/translation/TranslationSettingsPanel';
+import { TransBlockPopover } from '@/components/translation/TransBlockPopover';
 import { useT } from '@/lib/i18n/context';
 import { Button } from '@/components/ui/button';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -30,7 +31,8 @@ export function ReaderView() {
         currentBook, currentLocation, prefs, updatePrefs,
         setLocation, setTotalLocations,
         selection, setSelection,
-        isTranslationPanelOpen, setTranslationPanelOpen,
+        isTranslationPanelOpen, 
+        // setTranslationPanelOpen,
         isSearchOpen, setSearchOpen,
         isProgressOpen, setProgressOpen,
         isStudyOpen, setStudyOpen,
@@ -50,6 +52,53 @@ export function ReaderView() {
         setChromeVisible(true);
         if (fadeTRef.current) clearTimeout(fadeTRef.current);
         fadeTRef.current = setTimeout(() => setChromeVisible(false), 3500);
+    }, []);
+
+    const handleTransBlockEdit = useCallback((transId: string, currentText: string) => {
+        const iframe = containerRef.current?.querySelector('iframe') as HTMLIFrameElement | null;
+        const doc = iframe?.contentDocument;
+        if (!doc) return;
+        const block = doc.querySelector(`.aurobie-trans-block[data-trans-id="${transId}"]`) as HTMLElement | null;
+        if (!block) return;
+
+        const textarea = doc.createElement('textarea');
+        textarea.value = currentText;
+        textarea.style.cssText = `
+        width: 100%; box-sizing: border-box;
+        font-style: italic; font-size: 0.88em; line-height: 1.6;
+        border: 1px solid rgba(128,128,128,0.4); border-radius: 4px;
+        padding: 4px 8px; background: transparent; color: inherit;
+        outline: none; resize: vertical; font-family: inherit;
+    `;
+        block.replaceWith(textarea);
+        textarea.focus();
+        textarea.select();
+
+        const commit = () => {
+            const newText = textarea.value.trim();
+            if (!newText) { textarea.remove(); return; }
+            const newBlock = doc.createElement('div');
+            newBlock.className = 'aurobie-trans-block';
+            newBlock.dataset.transId = transId;
+            // Preserve anchorId so future edits/removes still find the block
+            const anchorId = transId;
+            newBlock.dataset.anchorId = anchorId;
+            newBlock.textContent = newText;
+            textarea.replaceWith(newBlock);
+        };
+
+        textarea.addEventListener('blur', commit);
+        textarea.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commit(); }
+            if (e.key === 'Escape') { textarea.replaceWith(block); } // restore original
+        });
+    }, []);
+
+    const handleTransBlockRemove = useCallback((transId: string) => {
+        const iframe = containerRef.current?.querySelector('iframe') as HTMLIFrameElement | null;
+        const doc = iframe?.contentDocument;
+        if (!doc) return;
+        doc.querySelector(`.aurobie-trans-block[data-trans-id="${transId}"]`)?.remove();
     }, []);
 
     useEffect(() => {
@@ -205,7 +254,7 @@ export function ReaderView() {
         return () => window.removeEventListener('keydown', handler);
     }, [next, prev, prefs.flowMode, isTranslationPanelOpen, isSearchOpen, isProgressOpen, isStudyOpen]);
 
-    const handleTranslate = useCallback(() => { if (selection) setTranslationPanelOpen(true); }, [selection, setTranslationPanelOpen]);
+    // const handleTranslate = useCallback(() => { if (selection) setTranslationPanelOpen(true); }, [selection, setTranslationPanelOpen]);
     const handleDefine = useCallback(() => { if (selection) setWordLookupOpen(true); }, [selection, setWordLookupOpen]);
     const handleStudy = useCallback(() => setStudyOpen(true), [setStudyOpen]);
     const handleDismiss = useCallback(() => {
@@ -256,8 +305,6 @@ export function ReaderView() {
             return null;
         }
     }, [selection?.cfiRange, highlights, rendition]);
-
-    console.log('activeHighlight', activeHighlight);
 
     return (
         <div
@@ -376,7 +423,6 @@ export function ReaderView() {
             {/* ── Panels ── */}
             <SelectionPopover
                 selection={selection}
-                onTranslate={handleTranslate}
                 onDefine={handleDefine}
                 onStudy={handleStudy}
                 onHighlight={handleHighlight}
@@ -385,7 +431,11 @@ export function ReaderView() {
                 onDismiss={handleDismiss}
                 onInjectTranslation={handleInjectTranslation}
             />
-            <TranslationPanel onOpenSettings={() => setTranslationSettingsOpen(true)} />
+            <TransBlockPopover
+                onEdit={handleTransBlockEdit}
+                onRemove={handleTransBlockRemove}
+            />
+            {/* <TranslationPanel onOpenSettings={() => setTranslationSettingsOpen(true)} /> */}
             <SearchPanel onSearch={search} onGoTo={goTo} />
             <ReadingProgressPanel open={isProgressOpen} onClose={() => setProgressOpen(false)} totalLocations={totalLocations} />
             <StudyPanel open={isStudyOpen} onClose={() => setStudyOpen(false)} initialTerm={selection?.text} />

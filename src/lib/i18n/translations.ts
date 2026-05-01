@@ -86,6 +86,8 @@ function buildTranslations(raw: RawLocale) {
         original: raw.original,
         copy: raw.copy,
         copied: raw.copied,
+        edit: raw.edit,
+        remove: raw.remove,
         couldNotCopy: raw.couldNotCopy,
         retry: raw.retry,
         targetLanguage: raw.targetLanguage,

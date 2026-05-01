@@ -2,7 +2,7 @@ import { useLayoutEffect, useEffect, useRef, useState, useCallback } from 'react
 import { Button } from '@/components/ui/button';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { useT } from '@/lib/i18n/context';
-import { BookOpenIcon, Cancel01Icon, TranslateIcon, NoteEditIcon, NoteRemoveIcon, HighlighterIcon, NoteAddIcon, AArrowDownIcon, Delete02Icon, UnavailableIcon } from '@hugeicons/core-free-icons';
+import { BookOpenIcon, Cancel01Icon, TranslateIcon, NoteEditIcon, NoteRemoveIcon, HighlighterIcon, NoteAddIcon, UnavailableIcon } from '@hugeicons/core-free-icons';
 import type { SelectionInfo } from '@/lib/epub/useEpubReader';
 import type { HighlightColor } from '@/hooks/useHighlights';
 import { translate } from '@/lib/translation/client';
@@ -10,7 +10,7 @@ import { useReaderStore } from '@/stores/readerStore';
 
 interface SelectionPopoverProps {
     selection: SelectionInfo | null;
-    onTranslate: () => void;      // open TranslationPanel (side sheet)
+    // onTranslate: () => void;      // open TranslationPanel (side sheet)
     onDefine: () => void;
     onStudy: () => void;
     onHighlight: (color: HighlightColor) => void;
@@ -35,7 +35,7 @@ const GAP = 8;
 
 export function SelectionPopover({
     selection,
-    onTranslate,
+    // onTranslate,
     onDefine,
     onStudy,
     onHighlight,
@@ -155,65 +155,45 @@ export function SelectionPopover({
                 {/* ── Actions row ── */}
                 {(mode === 'actions' || mode === 'translating') && (
                     <div className="flex items-center gap-0.5 px-1" style={{ height: 44 }}>
-                        {/* Translate → side panel */}
-                        <Button variant="ghost" size="sm" onClick={onTranslate}
-                            className="flex-1 h-8 gap-1 px-1.5" title={t.translateTitle}>
-                            <HugeiconsIcon icon={TranslateIcon} />
-                            <span className="text-xs">{t.translate}</span>
-                        </Button>
-
-                        {/* Translate here → inline */}
+                        {/* Translate */}
                         <Button variant={mode === 'translating' ? 'secondary' : 'ghost'} size="sm"
                             onClick={handleTranslateHere} disabled={mode === 'translating'}
                             className="flex-1 h-8 gap-1 px-1.5" title={t.translateHere}>
                             {mode === 'translating'
                                 ? <span className="w-3 h-3 border border-foreground/40 border-t-foreground rounded-full animate-spin" />
-                                : <HugeiconsIcon icon={AArrowDownIcon} />}
-                            <span className="text-xs">{mode === 'translating' ? t.translating : t.translateHere}</span>
+                                : <HugeiconsIcon icon={TranslateIcon} />}
+                            <span className="hidden sm:inline text-xs">{mode === 'translating' ? t.translating : t.translate}</span>
                         </Button>
 
                         {/* Divider */}
-                        <div className="w-px h-4 bg-border mx-0.5" />
+                        <div className="hidden sm:inline w-px h-4 bg-border mx-0.5" />
 
+                        {/* Define */}
                         <Button variant="ghost" size="sm" onClick={onDefine}
                             className="h-8 gap-1 px-1.5" title={t.defineTitle}>
                             <HugeiconsIcon icon={BookOpenIcon} />
-                            {/* <span className="text-xs">{t.define}</span> */}
+                            <span className="hidden sm:inline text-xs">{t.define}</span>
                         </Button>
 
                         {/* Divider */}
-                        <div className="w-px h-4 bg-border mx-0.5" />
+                        <div className="hidden sm:inline w-px h-4 bg-border mx-0.5" />
 
+                        {/* Study */}
                         <Button variant="ghost" size="sm" onClick={onStudy}
                             className="h-8 gap-1 px-1.5" title={t.study}>
                             <HugeiconsIcon icon={NoteAddIcon} />
+                            <span className="hidden sm:inline text-xs">{t.study}</span>
                         </Button>
 
                         {/* Divider */}
-                        <div className="w-px h-4 bg-border mx-0.5" />
+                        <div className="hidden sm:inline w-px h-4 bg-border mx-0.5" />
 
-                        {/* Highlight toggle */}
-                        {/* {activeHighlightColor ? (
-                            // Already highlighted — show remove button
-                            <Button variant="ghost" size="sm"
-                                onClick={() => { onRemoveHighlight?.(); onDismiss(); }}
-                                className="h-8 w-8 p-0"
-                                title={t.removeHighlights}
-                                style={{ color: HIGHLIGHT_COLORS.find(c => c.color === activeHighlightColor)?.bg }}>
-                                <HugeiconsIcon icon={HighlighterIcon} />
-                            </Button>
-                        ) : (
-                            // Not highlighted — show color picker toggle
-                            <Button variant={showColors ? 'secondary' : 'ghost'} size="sm"
-                                onClick={() => setShowColors(s => !s)}
-                                className="h-8 w-8 p-0" title={t.highlight}>
-                                <HugeiconsIcon icon={HighlighterIcon} />
-                            </Button>
-                        )} */}
+                        {/* Highlight */}
                         <Button variant={showColors ? 'secondary' : 'ghost'} size="sm"
                             onClick={() => setShowColors(s => !s)}
-                            className="h-8 w-8 p-0" title={t.highlight}>
+                            className="h-8 gap-1 px-1.5 w-8 sm:w-auto" title={t.highlight}>
                             <HugeiconsIcon icon={HighlighterIcon} />
+                            <span className="hidden sm:inline text-xs">{t.highlight}</span>
                         </Button>
 
                         <Button variant="ghost" size="sm" onClick={onDismiss}

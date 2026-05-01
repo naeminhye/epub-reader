@@ -65,6 +65,8 @@
     "original": "Nguyên bản",
     "copy": "Sao chép",
     "copied": "Đã sao chép",
+    "edit": "Chỉnh sửa",
+    "remove": "Xóa",
     "couldNotCopy": "Không thể sao chép",
     "retry": "Thử lại",
     "translatedBy": "Dịch bởi {model}",

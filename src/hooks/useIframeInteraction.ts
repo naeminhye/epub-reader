@@ -38,12 +38,50 @@ export function useIframeInteraction({ enabled }: UseIframeInteractionOptions) {
         padding: 0.25em 0.6em;
         margin-top: 0.3em;
         color: inherit;
+        cursor: pointer;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      .aurobie-trans-block:hover {
+        opacity: 1;
       }
       .aurobie-trans-block[data-hidden="true"] {
         display: none;
       }
     `;
     doc.head.appendChild(style);
+
+    // Click → notify parent with block identity + text + position
+    doc.addEventListener('click', (e) => {
+      const block = (e.target as Element).closest('.aurobie-trans-block') as HTMLElement | null;
+      if (!block) return;
+      e.stopPropagation();
+      const rect = block.getBoundingClientRect();
+      // getBoundingClientRect is relative to the iframe viewport — convert to top-level viewport
+      const iframes = window.parent.document.querySelectorAll('iframe');
+      let iframeRect = { top: 0, left: 0 };
+      for (const iframe of Array.from(iframes)) {
+        try {
+          if (iframe.contentDocument === doc) {
+            iframeRect = iframe.getBoundingClientRect();
+            break;
+          }
+        } catch { /* cross-origin, skip */ }
+      }
+      window.parent.postMessage({
+        type: 'aurobie-trans-block-click',
+        transId: block.dataset.transId ?? '',
+        text: block.textContent ?? '',
+        rect: {
+          top: rect.top + iframeRect.top,
+          bottom: rect.bottom + iframeRect.top,
+          left: rect.left + iframeRect.left,
+          right: rect.right + iframeRect.left,
+          width: rect.width,
+          height: rect.height,
+        },
+      }, '*');
+    });
   }, [enabled]);
 
   return { injectIntoDocument };
@@ -64,24 +102,29 @@ export function putTranslationInDoc(
 ) {
   if (!anchorEl) return;
 
-  // Find the nearest block-level ancestor that makes sense to insert after
   const para = anchorEl.closest('p, h1, h2, h3, h4, li, blockquote') ?? anchorEl;
 
-  // Remove existing block if present
   const existing = para.parentElement?.querySelector(
     `.aurobie-trans-block[data-anchor-id="${(para as HTMLElement).dataset.aurobieTrans}"]`
-  );
-  existing?.remove();
+  ) as HTMLElement | null;
 
-  if (!translationText) return; // empty = remove only
+  if (!translationText) {
+    existing?.remove();
+    return;
+  }
 
-  // Tag the para so we can find its block later
+  if (existing) {
+    existing.textContent = translationText;
+    return;
+  }
+
   const anchorId = `at-${Date.now()}`;
   (para as HTMLElement).dataset.aurobieTrans = anchorId;
 
   const block = doc.createElement('div');
   block.className = 'aurobie-trans-block';
   block.dataset.anchorId = anchorId;
+  block.dataset.transId = anchorId; // same value — used by click handler
   block.textContent = translationText;
   para.insertAdjacentElement('afterend', block);
 }

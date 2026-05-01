@@ -272,8 +272,7 @@ function ContinueCard({ book, onOpen }: { book: Book; onOpen: (b: Book) => void 
                     : 'min(156px, 30vw) 1fr'
             }}>
             <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(800px 200px at 100% 0%, var(--accent-glow), transparent 60%)', opacity: .35 }} />
-            <div style={{ width: 'min(156px, 30vw)', height: 'min(232px, 45vw)', flexShrink: 0, cursor: 'pointer' }}
-                onClick={() => onOpen(book)}>
+            <div className='continue-card-cover' onClick={() => onOpen(book)}>
                 {coverUrl
                     ? <img src={coverUrl} alt={book.title} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4, boxShadow: '0 1px 0 rgba(255,255,255,.06) inset, -2px 0 0 rgba(0,0,0,.18) inset, 0 14px 32px -8px rgba(0,0,0,.35)' }} />
                     : <PlaceholderCover title={book.title} width={156} height={232} />}

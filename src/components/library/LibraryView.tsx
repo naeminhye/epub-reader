@@ -36,9 +36,20 @@ export function LibraryView() {
         prevReaderOpen.current = isReaderOpen;
     }, [isReaderOpen, loadLibrary]);
 
-    const continueBook = useMemo(() =>
-        books.find(b => b.progress > 0 && b.progress < 0.95 && b.lastReadAt)
-        , [JSON.stringify(books)]); // Deep compare to catch progress/lastReadAt changes
+    const continueBook = useMemo(() => [...books]
+            .filter(b => {
+            const hasReadingState =
+                b.progress > 0 ||
+                !!b.lastReadAt ||
+                !!b.currentLocation;
+
+            return hasReadingState && b.progress < 0.95;
+        })
+        .sort((a, b) => {
+            const aTime = a.lastReadAt ? new Date(a.lastReadAt).getTime() : 0;
+            const bTime = b.lastReadAt ? new Date(b.lastReadAt).getTime() : 0;
+            return bTime - aTime;
+        })[0], [books]);
 
     const filtered = useMemo(() => {
         let list = books;
@@ -245,22 +256,33 @@ function ContinueCard({ book, onOpen }: { book: Book; onOpen: (b: Book) => void 
 
     // Load most recent highlight for this book
     useEffect(() => {
+        setRecentHighlight(null);
+
         import('@/lib/db/schema').then(({ db }) => {
             db.highlights
-                .where('bookId').equals(book.id)
-                .sortBy('createdAt')
-                .then(highlights => {
-                    const last = highlights[highlights.length - 1];
-                    if (last) setRecentHighlight(last as unknown as RecentHighlight);
-                })
-                .catch(() => { });
+            .where('bookId')
+            .equals(book.id)
+            .sortBy('createdAt')
+            .then(highlights => {
+                const last = highlights.at(-1);
+                if (last) setRecentHighlight(last);
+            })
+            .catch(() => {});
         });
     }, [book.id]);
 
     const pct = Math.round(book.progress * 100);
-    const lastRead = book.lastReadAt
-        ? new Intl.RelativeTimeFormat('en', { numeric: 'auto' }).format(-Math.round((Date.now() - book.lastReadAt.getTime()) / 86400000), 'day')
-        : '';
+    // const lastRead = book.lastReadAt
+    //     ? new Intl.RelativeTimeFormat('en', { numeric: 'auto' }).format(-Math.round((Date.now() - book.lastReadAt.getTime()) / 86400000), 'day')
+    //     : '';
+    const lastReadDate = book.lastReadAt ? new Date(book.lastReadAt) : null;
+
+    const lastRead = lastReadDate
+    ? new Intl.RelativeTimeFormat('en', { numeric: 'auto' }).format(
+        -Math.round((Date.now() - lastReadDate.getTime()) / 86400000),
+        'day'
+        )
+    : '';
 
     return (
         <div onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 18px 40px -20px rgba(0,0,0,.18)'; }}

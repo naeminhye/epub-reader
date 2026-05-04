@@ -28,10 +28,11 @@ interface ReaderToolbarProps {
     onBookmarksOpen: () => void;
     isBookmarked: boolean;
     onToggleBookmark: () => void;
+    onBack: () => void;
 }
 
-export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen, onTranslationSettings, onBookmarksOpen, isBookmarked, onToggleBookmark }: ReaderToolbarProps) {
-    const { currentBook, closeBook, prefs, updatePrefs, progress } = useReaderStore();
+export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen, onTranslationSettings, onBookmarksOpen, isBookmarked, onToggleBookmark, onBack }: ReaderToolbarProps) {
+    const { currentBook, prefs, updatePrefs, progress } = useReaderStore();
     const { locale, setLocale } = useLocale();
     const t = useT();
 
@@ -45,7 +46,7 @@ export function ReaderToolbar({ toc, onGoTo, onSearchOpen, onProgressOpen, onTra
             <div className="flex items-center gap-1 px-2 py-2">
 
                 {/* Back */}
-                <Button variant="ghost" size="sm" onClick={closeBook} className="shrink-0 gap-1">
+                <Button variant="ghost" size="sm" onClick={onBack} className="shrink-0 gap-1">
                     <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
                     <span className="hidden sm:inline text-xs">{t.library}</span>
                 </Button>

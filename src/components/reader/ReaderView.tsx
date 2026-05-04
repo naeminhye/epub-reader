@@ -13,7 +13,6 @@ import { ReadingProgressPanel } from './ReadingProgressPanel';
 import { StudyPanel } from './StudyPanel';
 import { WordLookupPanel } from '@/components/translation/WordLookupPanel';
 import { SelectionPopover } from '@/components/translation/SelectionPopover';
-// import { TranslationPanel } from '@/components/translation/TranslationPanel';
 import { TranslationSettingsPanel } from '@/components/translation/TranslationSettingsPanel';
 import { TransBlockPopover } from '@/components/translation/TransBlockPopover';
 import { useT } from '@/lib/i18n/context';
@@ -22,6 +21,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowLeft01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 import type { LocationChangeHandler, SelectionHandler } from '@/lib/epub/useEpubReader';
+import { useLibraryStore } from '@/stores/libraryStore';
 
 export function ReaderView() {
     const t = useT();
@@ -29,6 +29,7 @@ export function ReaderView() {
 
     const {
         currentBook, currentLocation, prefs, updatePrefs,
+        closeBook, progress,
         setLocation, setTotalLocations,
         selection, setSelection,
         isTranslationPanelOpen, 
@@ -263,6 +264,22 @@ export function ReaderView() {
         iframe?.contentDocument?.getSelection()?.removeAllRanges();
     }, [setSelection]);
 
+    const handleBackToLibrary = useCallback(async () => {
+        if (currentBook) {
+            const { bookRepo } = await import('@/lib/db/bookRepo');
+
+            await bookRepo.updateProgress(
+            currentBook.id,
+            progress,
+            currentLocation ?? undefined
+            );
+
+            await useLibraryStore.getState().loadLibrary();
+        }
+
+        closeBook();
+    }, [currentBook, currentLocation, progress, closeBook]);
+
     if (!currentBook) return null;
 
     const isPaginated = prefs.flowMode === 'paginated';
@@ -279,6 +296,7 @@ export function ReaderView() {
             onBookmarksOpen={() => setBookmarksOpen(true)}
             isBookmarked={currentlyBookmarked}
             onToggleBookmark={handleToggleBookmark}
+            onBack={handleBackToLibrary}
         />
     );
 

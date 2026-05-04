@@ -24,6 +24,13 @@ export const useLibraryStore = create<LibraryState>((set) => ({
         set({ isLoading: true });
         try {
             const books = await bookRepo.list();
+
+            books.sort((a, b) => {
+            const aTime = a.lastReadAt ? new Date(a.lastReadAt).getTime() : 0;
+            const bTime = b.lastReadAt ? new Date(b.lastReadAt).getTime() : 0;
+            return bTime - aTime;
+            });
+
             set({ books, isLoading: false });
         } catch (err) {
             console.error('Failed to load library', err);

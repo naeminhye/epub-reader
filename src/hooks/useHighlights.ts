@@ -228,35 +228,65 @@ interface TextNodeSlice {
 
 /** Get all Text nodes within a Range, with their slice offsets */
 function getTextNodesInRange(range: Range): TextNodeSlice[] {
-    const results: TextNodeSlice[] = [];
-    const walker = range.startContainer.ownerDocument!.createTreeWalker(
-        range.commonAncestorContainer,
-        NodeFilter.SHOW_TEXT,
-        {
-            acceptNode(node: Node): number {
-                // Skip nodes that are completely outside the range
-                const r = range.cloneRange();
-                r.selectNode(node);
-                if (range.compareBoundaryPoints(Range.END_TO_START, r) >= 0) return NodeFilter.FILTER_REJECT;
-                if (range.compareBoundaryPoints(Range.START_TO_END, r) <= 0) return NodeFilter.FILTER_REJECT;
-                return NodeFilter.FILTER_ACCEPT;
-            },
-        }
-    );
+  const results: TextNodeSlice[] = [];
 
-    let node: Node | null;
-    while ((node = walker.nextNode())) {
+  const root =
+    range.commonAncestorContainer.nodeType === Node.TEXT_NODE
+      ? range.commonAncestorContainer.parentNode
+      : range.commonAncestorContainer;
+
+  if (!root) return results;
+
+  const walker = range.startContainer.ownerDocument!.createTreeWalker(
+    root,
+    NodeFilter.SHOW_TEXT,
+    {
+      acceptNode(node: Node): number {
         const textNode = node as Text;
-        const isStart = textNode === range.startContainer;
-        const isEnd = textNode === range.endContainer;
-        results.push({
-            node: textNode,
-            start: isStart ? range.startOffset : 0,
-            end: isEnd ? range.endOffset : textNode.length,
-        });
+
+        if (!textNode.nodeValue?.trim()) {
+          return NodeFilter.FILTER_REJECT;
+        }
+
+        try {
+          if (!range.intersectsNode(textNode)) {
+            return NodeFilter.FILTER_REJECT;
+          }
+        } catch {
+          return NodeFilter.FILTER_REJECT;
+        }
+
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    }
+  );
+
+  let node: Node | null;
+
+  while ((node = walker.nextNode())) {
+    const textNode = node as Text;
+
+    let start = 0;
+    let end = textNode.length;
+
+    if (textNode === range.startContainer) {
+      start = range.startOffset;
     }
 
-    return results;
+    if (textNode === range.endContainer) {
+      end = range.endOffset;
+    }
+
+    if (start < end) {
+      results.push({
+        node: textNode,
+        start,
+        end,
+      });
+    }
+  }
+
+  return results;
 }
 
 function hexToRgba(hex: string, opacity: number): string {

@@ -6,8 +6,9 @@ import { bookStatus, type Book } from '@/lib/db/schema';
 import { BookCard } from './BookCard';
 import { toast } from 'sonner';
 import '@/styles/library.css';
-import { QuoteUpIcon } from '@hugeicons/core-free-icons';
+import { Moon02Icon, QuoteUpIcon, Sun03Icon, SunCloud02Icon } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react';
+import { Button } from '@/components/ui/button';
 
 type Filter = 'all' | 'reading' | 'new' | 'done';
 type Layout = 'grid' | 'list';
@@ -74,11 +75,28 @@ export function LibraryView() {
         updatePrefs({ theme: next });
     };
 
-    const themeIcon = prefs.theme === 'dark'
-        ? '☽'
-        : prefs.theme === 'sepia'
-            ? '◑'
-            : '☀';
+    const themeIcon = prefs.theme === 'light' ?
+            <Button
+                variant="ghost"
+                className="p-0"
+                size="icon-sm"
+            >
+                <HugeiconsIcon icon={Sun03Icon} size={12} />
+            </Button> : prefs.theme === 'sepia' ?
+                <Button
+                    variant="ghost"
+                    className="p-0"
+                    size="icon-sm"
+                >
+                    <HugeiconsIcon icon={SunCloud02Icon} size={12} />
+                </Button> :
+                <Button
+                    variant="ghost"
+                    className="p-0"
+                    size="icon-sm"
+                >
+                    <HugeiconsIcon icon={Moon02Icon} size={12} />
+                </Button>
 
     return (
         <div style={{ background: 'var(--paper)', minHeight: '100vh', color: 'var(--ink)' }}>

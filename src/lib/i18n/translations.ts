@@ -78,6 +78,7 @@ function buildTranslations(raw: RawLocale) {
         define: raw.define,
         highlight: raw.highlight,
         close: raw.close,
+        readAloud: raw.readAloud,
         color: raw.color,
         translateTitle: raw.translateTitle,
         defineTitle: raw.defineTitle,

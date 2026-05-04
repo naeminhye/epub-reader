@@ -2,11 +2,12 @@ import { useLayoutEffect, useEffect, useRef, useState, useCallback } from 'react
 import { Button } from '@/components/ui/button';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { useT } from '@/lib/i18n/context';
-import { BookOpenIcon, Cancel01Icon, TranslateIcon, NoteEditIcon, NoteRemoveIcon, HighlighterIcon, NoteAddIcon, UnavailableIcon } from '@hugeicons/core-free-icons';
+import { BookOpenIcon, Cancel01Icon, TranslateIcon, NoteEditIcon, NoteRemoveIcon, HighlighterIcon, NoteAddIcon, UnavailableIcon, AudioBook03Icon } from '@hugeicons/core-free-icons';
 import type { SelectionInfo } from '@/lib/epub/useEpubReader';
 import type { HighlightColor } from '@/hooks/useHighlights';
 import { translate } from '@/lib/translation/client';
 import { useReaderStore } from '@/stores/readerStore';
+import { speakText, stopSpeak } from '@/lib/speech';
 
 interface SelectionPopoverProps {
     selection: SelectionInfo | null;
@@ -54,6 +55,7 @@ export function SelectionPopover({
     const [translationText, setTranslationText] = useState('');
     const [editDraft, setEditDraft] = useState('');
     const [translateError, setTranslateError] = useState('');
+
     const editRef = useRef<HTMLTextAreaElement>(null);
 
     // Reset state when selection changes
@@ -131,6 +133,12 @@ export function SelectionPopover({
         setMode('actions');
     }, [onInjectTranslation, selection?.cfiRange]);
 
+    // Stop speech on selection change
+    // to prevent it from reading old selection after new one is made
+    useEffect(() => {
+        stopSpeak();
+    }, [selection?.cfiRange]);
+
     if (!selection || !position) return null;
 
     return (
@@ -194,6 +202,25 @@ export function SelectionPopover({
                             className="h-8 gap-1 px-1.5 w-8 sm:w-auto" title={t.highlight}>
                             <HugeiconsIcon icon={HighlighterIcon} />
                             <span className="hidden sm:inline text-xs">{t.highlight}</span>
+                        </Button>
+
+                        {/* Divider */}
+                        <div className="hidden sm:inline w-px h-4 bg-border mx-0.5" />
+
+                        {/* Read Aloud */}
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={!selection?.text}
+                            onClick={() =>
+                                speakText(selection.text, {
+                                    bookLang: currentBook?.language,
+                                    splitBySentence: true,
+                                })
+                            }
+                        >
+                            <HugeiconsIcon icon={AudioBook03Icon} />
+                            <span className="hidden sm:inline text-xs">{t.readAloud}</span>
                         </Button>
 
                         <Button variant="ghost" size="sm" onClick={onDismiss}

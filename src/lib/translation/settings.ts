@@ -16,7 +16,7 @@ export type TranslationProvider =
     | 'deeplx'           // Neural — DeepLX (self-hosted DeepL proxy, free)
     | 'browser';         // Neural — Browser built-in Translator API (on-device, free, offline)
 
-export type ProviderCategory = 'llm' | 'neural';
+export type ProviderCategory = 'llm' | 'neural' | 'browser';
 
 export interface ProviderMeta {
     id: TranslationProvider;
@@ -99,7 +99,7 @@ export const PROVIDERS: ProviderMeta[] = [
     {
         id: 'browser',
         name: 'Browser Translation',
-        category: 'neural',
+        category: 'browser',
         tagline: 'Built-in, on-device — free, private, works offline',
         keyHint: '',
         keyRequired: false,

@@ -48,6 +48,7 @@ export function TranslationSettingsPanel({ open, onClose }: TranslationSettingsP
 
     const llmProviders = PROVIDERS.filter(p => p.category === 'llm');
     const neuralProviders = PROVIDERS.filter(p => p.category === 'neural');
+    const browserProviders = PROVIDERS.filter(p => p.category === 'browser');
     const activeMeta = PROVIDERS.find(p => p.id === settings.provider)!;
     const ready = isProviderReady(settings);
 
@@ -131,10 +132,15 @@ export function TranslationSettingsPanel({ open, onClose }: TranslationSettingsP
                             </select>
                         </section>
 
-                        {/* ── AI / LLM providers ───────────────────────────────────── */}
-                        <section className="space-y-3">
-                            <Label className="text-sm font-medium">AI Translation</Label>
+                        {/* ── Translation engine — pick exactly one provider ────────── */}
+                        <section className="space-y-4">
+                            <div>
+                                <Label className="text-sm font-medium">Translation engine</Label>
+                                <p className="text-xs text-muted-foreground mt-0.5">Pick one — it is used for all translations.</p>
+                            </div>
+
                             <div className="space-y-2">
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">AI Translation</p>
                                 {llmProviders.map(p => (
                                     <ProviderCard
                                         key={p.id}
@@ -146,13 +152,24 @@ export function TranslationSettingsPanel({ open, onClose }: TranslationSettingsP
                                     />
                                 ))}
                             </div>
-                        </section>
 
-                        {/* ── Neural / dedicated translation ───────────────────────── */}
-                        <section className="space-y-3">
-                            <Label className="text-sm font-medium">Translation APIs</Label>
                             <div className="space-y-2">
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Translation APIs</p>
                                 {neuralProviders.map(p => (
+                                    <ProviderCard
+                                        key={p.id}
+                                        id={p.id}
+                                        name={p.name}
+                                        tagline={p.tagline}
+                                        active={settings.provider === p.id}
+                                        onSelect={() => update('provider', p.id)}
+                                    />
+                                ))}
+                            </div>
+
+                            <div className="space-y-2">
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Browser Translation</p>
+                                {browserProviders.map(p => (
                                     <ProviderCard
                                         key={p.id}
                                         id={p.id}

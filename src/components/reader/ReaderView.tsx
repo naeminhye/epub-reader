@@ -294,7 +294,7 @@ export function ReaderView() {
     if (!currentBook) return null;
 
     const isPaginated = prefs.flowMode === 'paginated';
-    const showNav = isReady && !selection && !isTranslationPanelOpen;
+    const showNav = isReady && !isTranslationPanelOpen;
     const currentlyBookmarked = currentCfi ? isBookmarked(currentCfi) : false;
 
     const toolbarEl = (

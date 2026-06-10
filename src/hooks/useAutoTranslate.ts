@@ -74,19 +74,10 @@ export function useAutoTranslate({
         color: inherit;
       }
       ${!show ? `
-      p[data-translation], h1[data-translation], h2[data-translation], h3[data-translation], h4[data-translation] {
-        font-size: 0 !important;
-        line-height: 0 !important;
-        opacity: 0 !important;
-        margin-bottom: 0 !important;
-        padding-bottom: 0 !important;
-      }
       p[data-translation]::after,
       h1[data-translation]::after, h2[data-translation]::after,
       h3[data-translation]::after, h4[data-translation]::after {
-        font-size: 1rem;
-        line-height: 1.6;
-        opacity: 0.85;
+        display: none;
       }
       ` : ''}
     `;

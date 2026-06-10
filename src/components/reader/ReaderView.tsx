@@ -4,7 +4,7 @@ import { useEpubReader } from '@/lib/epub/useEpubReader';
 import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 import { useIframeInteraction, putTranslationInDoc } from '@/hooks/useIframeInteraction';
 import { useBookmarks } from '@/hooks/useBookmarks';
-import { useHighlights } from '@/hooks/useHighlights';
+import { useHighlights, resolveCfiRange } from '@/hooks/useHighlights';
 import type { HighlightColor } from '@/hooks/useHighlights';
 import { ReaderToolbar } from './ReaderToolbar';
 import { AnnotationsPanel } from './AnnotationsPanel';
@@ -241,19 +241,30 @@ export function ReaderView() {
         cancel();
     }, [prefs.autoTranslate, clearTranslations, cancel]);
 
-    // Keyboard nav
+    // Keyboard nav — pages in paginated mode, chapters in scrolled mode.
+    // Listens on window AND on the rendition: epubjs relays keydown events
+    // from the chapter iframes, which never reach the window listener.
     useEffect(() => {
-        if (prefs.flowMode === 'scrolled') return;
+        const isPaginated = prefs.flowMode !== 'scrolled';
         const handler = (e: KeyboardEvent) => {
-            const tag = (e.target as HTMLElement).tagName;
+            const tag = (e.target as HTMLElement | null)?.tagName;
             if (tag === 'INPUT' || tag === 'TEXTAREA') return;
             if (isTranslationPanelOpen || isSearchOpen || isProgressOpen || isStudyOpen) return;
-            if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); next(); }
-            else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prev(); }
+            // Space only paginates; in scrolled mode keep its native scroll behavior
+            if (e.key === 'ArrowRight' || e.key === 'PageDown' || (isPaginated && e.key === ' ')) {
+                e.preventDefault?.(); next();
+            } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+                e.preventDefault?.(); prev();
+            }
         };
+        const renditionHandler = (...args: unknown[]) => handler(args[0] as KeyboardEvent);
         window.addEventListener('keydown', handler);
-        return () => window.removeEventListener('keydown', handler);
-    }, [next, prev, prefs.flowMode, isTranslationPanelOpen, isSearchOpen, isProgressOpen, isStudyOpen]);
+        rendition?.on('keydown', renditionHandler);
+        return () => {
+            window.removeEventListener('keydown', handler);
+            rendition?.off('keydown', renditionHandler);
+        };
+    }, [next, prev, prefs.flowMode, rendition, isTranslationPanelOpen, isSearchOpen, isProgressOpen, isStudyOpen]);
 
     // const handleTranslate = useCallback(() => { if (selection) setTranslationPanelOpen(true); }, [selection, setTranslationPanelOpen]);
     const handleDefine = useCallback(() => { if (selection) setWordLookupOpen(true); }, [selection, setWordLookupOpen]);
@@ -283,7 +294,7 @@ export function ReaderView() {
     if (!currentBook) return null;
 
     const isPaginated = prefs.flowMode === 'paginated';
-    const showNav = isReady && !selection && !isTranslationPanelOpen;
+    const showNav = isReady && !isTranslationPanelOpen;
     const currentlyBookmarked = currentCfi ? isBookmarked(currentCfi) : false;
 
     const toolbarEl = (
@@ -305,8 +316,11 @@ export function ReaderView() {
 
         // Use the live DOM: check if the current selection range contains any highlight marks
         try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const range: Range | null = (rendition as any).getRange?.(selection.cfiRange) ?? null;
+            const iframe = containerRef.current?.querySelector('iframe') as HTMLIFrameElement | null;
+            const sel = iframe?.contentDocument?.getSelection();
+            const range: Range | null = (sel && !sel.isCollapsed && sel.rangeCount > 0)
+                ? sel.getRangeAt(0)
+                : resolveCfiRange(rendition, selection.cfiRange);
             if (!range) return null;
 
             const fragment = range.cloneContents();

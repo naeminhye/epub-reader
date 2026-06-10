@@ -147,6 +147,10 @@ export async function translate(req: TranslationRequest): Promise<TranslationRes
             result = await callDeepLX(text, sourceLang, targetLang, url);
             break;
         }
+        case 'browser': {
+            result = await callBrowserTranslator(text, sourceLang, targetLang);
+            break;
+        }
         default:
             throw new TranslationError('Unknown provider', 500);
     }
@@ -543,6 +547,88 @@ async function callPapago(
     const translation = data.message?.result?.translatedText?.trim();
     if (!translation) throw new TranslationError('Empty response from Papago', 502);
     return { translation, cached: false, model: 'papago', provider: 'papago' };
+}
+
+// ---------------------------------------------------------------------------
+// Browser built-in Translator API (Chrome 138+) — on-device, free, offline
+// ---------------------------------------------------------------------------
+interface BrowserTranslatorInstance {
+    translate(text: string): Promise<string>;
+}
+interface BrowserTranslatorStatic {
+    availability(opts: { sourceLanguage: string; targetLanguage: string }): Promise<string>;
+    create(opts: { sourceLanguage: string; targetLanguage: string }): Promise<BrowserTranslatorInstance>;
+}
+
+// Translator instances are expensive to create (may download a language pack),
+// so cache one per language pair for the session.
+const browserTranslators = new Map<string, Promise<BrowserTranslatorInstance>>();
+
+async function detectLanguage(text: string): Promise<string> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const LanguageDetector = (self as any).LanguageDetector as
+        | { create(): Promise<{ detect(t: string): Promise<Array<{ detectedLanguage: string; confidence: number }>> }> }
+        | undefined;
+    if (!LanguageDetector) return 'en';
+    try {
+        const detector = await LanguageDetector.create();
+        const results = await detector.detect(text.slice(0, 1000));
+        return results?.[0]?.detectedLanguage ?? 'en';
+    } catch {
+        return 'en';
+    }
+}
+
+async function callBrowserTranslator(
+    text: string, sourceLang: string, targetLang: string
+): Promise<TranslationResult> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const Translator = (self as any).Translator as BrowserTranslatorStatic | undefined;
+    if (!Translator) {
+        throw new TranslationError(
+            'Browser translation is not supported here. Use Chrome 138+ (or Edge), or choose another provider.', 501
+        );
+    }
+
+    const src = (sourceLang && sourceLang !== 'auto') ? sourceLang : await detectLanguage(text);
+    if (src === targetLang) {
+        return { translation: text, cached: false, model: 'browser', provider: 'browser' };
+    }
+
+    const pairKey = `${src}->${targetLang}`;
+    let pending = browserTranslators.get(pairKey);
+    if (!pending) {
+        pending = (async () => {
+            const availability = await Translator.availability({ sourceLanguage: src, targetLanguage: targetLang });
+            if (availability === 'unavailable') {
+                throw new TranslationError(
+                    `Your browser cannot translate ${src} → ${targetLang}. Try another provider.`, 501
+                );
+            }
+            // 'downloadable'/'downloading': create() triggers/awaits the language pack download
+            return Translator.create({ sourceLanguage: src, targetLanguage: targetLang });
+        })();
+        browserTranslators.set(pairKey, pending);
+    }
+
+    let translator: BrowserTranslatorInstance;
+    try {
+        translator = await pending;
+    } catch (err) {
+        browserTranslators.delete(pairKey);
+        if (err instanceof TranslationError) throw err;
+        throw new TranslationError('Browser translator failed to initialize.', 500, String(err));
+    }
+
+    let translation: string;
+    try {
+        translation = (await translator.translate(text)).trim();
+    } catch (err) {
+        throw new TranslationError('Browser translation failed.', 500, String(err));
+    }
+    if (!translation) throw new TranslationError('Empty response from browser translator', 502);
+
+    return { translation, cached: false, model: 'browser', provider: 'browser' };
 }
 
 const PAPAGO_LANG_MAP: Record<string, string> = {

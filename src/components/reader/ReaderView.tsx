@@ -4,7 +4,7 @@ import { useEpubReader } from '@/lib/epub/useEpubReader';
 import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 import { useIframeInteraction, putTranslationInDoc } from '@/hooks/useIframeInteraction';
 import { useBookmarks } from '@/hooks/useBookmarks';
-import { useHighlights } from '@/hooks/useHighlights';
+import { useHighlights, resolveCfiRange } from '@/hooks/useHighlights';
 import type { HighlightColor } from '@/hooks/useHighlights';
 import { ReaderToolbar } from './ReaderToolbar';
 import { AnnotationsPanel } from './AnnotationsPanel';
@@ -316,8 +316,11 @@ export function ReaderView() {
 
         // Use the live DOM: check if the current selection range contains any highlight marks
         try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const range: Range | null = (rendition as any).getRange?.(selection.cfiRange) ?? null;
+            const iframe = containerRef.current?.querySelector('iframe') as HTMLIFrameElement | null;
+            const sel = iframe?.contentDocument?.getSelection();
+            const range: Range | null = (sel && !sel.isCollapsed && sel.rangeCount > 0)
+                ? sel.getRangeAt(0)
+                : resolveCfiRange(rendition, selection.cfiRange);
             if (!range) return null;
 
             const fragment = range.cloneContents();

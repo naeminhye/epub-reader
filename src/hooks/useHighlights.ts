@@ -74,18 +74,22 @@ export function useHighlights(bookId: string | undefined, rendition: Rendition |
     }, [rendition, highlights]);
 
     const addHighlight = useCallback(async (cfi: string, text: string, color: HighlightColor): Promise<{ added: boolean; overlap: boolean }> => {
-        if (!bookId || !cfi || !renditionRef.current) return { added: false, overlap: false };
+        const rendition = renditionRef.current;
+        if (!bookId || !cfi || !rendition) return { added: false, overlap: false };
 
-        // Check for overlap: try to get the range and see if any existing marks are in it
-        try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const range: Range | null = (renditionRef.current as any).getRange?.(cfi) ?? null;
-            if (range) {
+        // Prefer the user's LIVE selection range — it is exactly what they selected,
+        // immune to epubjs CFI-resolution quirks that can make getRange(cfi) fail
+        // silently on the first highlight. Fall back to resolving the CFI.
+        const liveRange = getLiveSelectionRange(rendition, text);
+        const range = liveRange ?? resolveCfiRange(rendition, cfi);
+
+        // Check for overlap: see if any existing marks are inside the range
+        if (range) {
+            try {
                 const fragment = range.cloneContents();
-                const existingMarks = fragment.querySelectorAll('.aurobie-hl');
-                if (existingMarks.length > 0) return { added: false, overlap: true };
-            }
-        } catch { /* getRange may throw for CFIs not in current view — allow the add */ }
+                if (fragment.querySelectorAll('.aurobie-hl').length > 0) return { added: false, overlap: true };
+            } catch { /* allow the add */ }
+        }
 
         const hl: Highlight = {
             id: `hl-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -98,18 +102,19 @@ export function useHighlights(bookId: string | undefined, rendition: Rendition |
 
         await db.highlights.add(hl);
 
-        // Apply immediately to the live rendition.
-        // The user's native selection is still active at this point: it can both
-        // visually cover the new <mark> and make epubjs's getRange(cfi) resolve
-        // incorrectly, so clear it first, then verify and retry one frame later.
-        if (renditionRef.current) {
-            applyCurrentView(renditionRef.current, [hl]);
-            clearDocSelections(renditionRef.current);
-            if (!isHighlightApplied(renditionRef.current, hl.id)) {
-                requestAnimationFrame(() => {
-                    if (renditionRef.current) applyCurrentView(renditionRef.current, [hl]);
-                });
+        // Apply immediately. Clear the native selection first so its overlay
+        // doesn't cover the new marks (the cloned range stays valid).
+        if (range) {
+            const doc = range.startContainer.ownerDocument;
+            if (doc) {
+                try { doc.getSelection()?.removeAllRanges(); } catch { /* ignore */ }
+                injectStylesheet(doc);
+                try { wrapRangeWithMark(range, hl.id, hl.color); } catch (err) { console.warn('[highlight] wrap failed:', err); }
             }
+        }
+        // Fallback: if direct wrapping didn't produce marks, go through CFI resolution
+        if (!isHighlightApplied(rendition, hl.id)) {
+            applyCurrentView(rendition, [hl]);
         }
 
         await refresh();
@@ -169,13 +174,12 @@ function injectStylesheet(doc: Document) {
     doc.head.appendChild(style);
 }
 
-/** Apply a single highlight to a specific document using the rendition's getRange */
+/** Apply a single highlight to a specific document by resolving its CFI */
 function applyHighlightToDoc(h: Highlight, doc: Document, rendition: Rendition) {
     // Skip if already applied in this doc
     if (doc.querySelector(`.aurobie-hl-${h.id}`)) return;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const range: Range | null = (rendition as any).getRange?.(h.cfi) ?? null;
+    const range = resolveCfiRange(rendition, h.cfi);
     if (!range) return;
 
     // Verify the range is in this document
@@ -184,45 +188,68 @@ function applyHighlightToDoc(h: Highlight, doc: Document, rendition: Rendition) 
     wrapRangeWithMark(range, h.id, h.color);
 }
 
-/** Iterate the documents of all currently rendered views */
-function getRenderedDocs(rendition: Rendition): Document[] {
+/**
+ * Resolve a CFI range to a DOM Range, trying every available path:
+ *  1. contents.range(cfi) on each rendered view — public per-view API,
+ *     not filtered by epubjs's "visible views" check
+ *  2. rendition.getRange(cfi) — only works for views epubjs deems visible
+ */
+export function resolveCfiRange(rendition: Rendition, cfi: string): Range | null {
+    for (const contents of getRenderedContents(rendition)) {
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const range: Range | null = (contents as any).range?.(cfi) ?? null;
+            if (range) return range;
+        } catch { /* cfi not in this view */ }
+    }
     try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const views = (rendition as any).manager?.views?._views ?? [];
-        return views
-            .map((v: { document?: Document }) => v?.document)
-            .filter((d: Document | undefined): d is Document => !!d);
+        return (rendition as any).getRange?.(cfi) ?? null;
+    } catch {
+        return null;
+    }
+}
+
+/** All Contents objects of currently rendered views */
+function getRenderedContents(rendition: Rendition): Array<{ document: Document }> {
+    try {
+        return (rendition.getContents() ?? []).filter(c => !!c?.document);
     } catch {
         return [];
     }
 }
 
-/** Clear the native text selection in every rendered iframe */
-function clearDocSelections(rendition: Rendition) {
-    for (const doc of getRenderedDocs(rendition)) {
-        try { doc.getSelection()?.removeAllRanges(); } catch { /* ignore */ }
+/**
+ * Find the user's current (non-collapsed) selection in any rendered view.
+ * Returns a clone so the range survives clearing the selection.
+ * If `expectedText` is given, the selection text must match it.
+ */
+function getLiveSelectionRange(rendition: Rendition, expectedText?: string): Range | null {
+    for (const contents of getRenderedContents(rendition)) {
+        try {
+            const sel = contents.document.getSelection();
+            if (!sel || sel.isCollapsed || sel.rangeCount === 0) continue;
+            if (expectedText && sel.toString().trim() !== expectedText.trim()) continue;
+            return sel.getRangeAt(0).cloneRange();
+        } catch { /* ignore */ }
     }
+    return null;
 }
 
 /** True if a highlight's marks exist in any rendered view */
 function isHighlightApplied(rendition: Rendition, id: string): boolean {
-    return getRenderedDocs(rendition).some(doc => !!doc.querySelector(`.aurobie-hl-${id}`));
+    return getRenderedContents(rendition).some(c => !!c.document.querySelector(`.aurobie-hl-${id}`));
 }
 
 /** Apply highlights to whatever views are currently rendered */
 function applyCurrentView(rendition: Rendition, highlights: Highlight[]) {
-    try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const views = (rendition as any).manager?.views?._views ?? [];
-        for (const view of views) {
-            const doc = view?.document as Document | undefined;
-            if (!doc) continue;
-            injectStylesheet(doc);
-            highlights.forEach(h => {
-                try { applyHighlightToDoc(h, doc, rendition); } catch { /* not in this view */ }
-            });
-        }
-    } catch { /* ignore */ }
+    for (const contents of getRenderedContents(rendition)) {
+        const doc = contents.document;
+        injectStylesheet(doc);
+        highlights.forEach(h => {
+            try { applyHighlightToDoc(h, doc, rendition); } catch { /* not in this view */ }
+        });
+    }
 }
 
 /**

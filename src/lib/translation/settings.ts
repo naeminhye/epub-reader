@@ -13,7 +13,8 @@ export type TranslationProvider =
     | 'deepl'            // Neural — DeepL (highest quality for EU/JP langs, paid)
     | 'google-translate' // Neural — Google Translate (free unofficial + paid Cloud)
     | 'papago'           // Neural — Naver Papago (best for Korean ↔ others)
-    | 'deeplx';          // Neural — DeepLX (self-hosted DeepL proxy, free)
+    | 'deeplx'           // Neural — DeepLX (self-hosted DeepL proxy, free)
+    | 'browser';         // Neural — Browser built-in Translator API (on-device, free, offline)
 
 export type ProviderCategory = 'llm' | 'neural';
 
@@ -95,7 +96,22 @@ export const PROVIDERS: ProviderMeta[] = [
         supportsModels: false,
         note: 'Run your own DeepLX instance. Enter your server URL (no auth key needed by default).',
     },
+    {
+        id: 'browser',
+        name: 'Browser Translation',
+        category: 'neural',
+        tagline: 'Built-in, on-device — free, private, works offline',
+        keyHint: '',
+        keyRequired: false,
+        supportsModels: false,
+        note: 'Uses your browser\'s built-in Translator API (Chrome 138+). Text never leaves your device. Language packs download automatically on first use.',
+    },
 ];
+
+/** True if this browser exposes the built-in Translator API */
+export function isBrowserTranslatorSupported(): boolean {
+    return typeof self !== 'undefined' && 'Translator' in self;
+}
 
 // LLM model options
 export const GEMINI_MODELS = [
@@ -175,6 +191,7 @@ export function isProviderReady(settings: TranslationSettings): boolean {
         case 'google-translate': return true; // unofficial free tier always available
         case 'papago': return !!settings.papagoClientId && !!settings.papagoClientSecret;
         case 'deeplx': return !!settings.deeplxUrl;
+        case 'browser': return isBrowserTranslatorSupported();
         default: return false;
     }
 }

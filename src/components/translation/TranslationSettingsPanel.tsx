@@ -19,6 +19,7 @@ import {
     GEMINI_MODELS,
     OPENROUTER_MODELS,
     isProviderReady,
+    isBrowserTranslatorSupported,
     type TranslationSettings,
     type TranslationProvider,
 } from '@/lib/translation/settings';
@@ -240,6 +241,7 @@ const PROVIDER_ICONS: Record<TranslationProvider, string> = {
     'google-translate': 'G',
     papago: 'N',
     deeplx: '∞',
+    browser: '🌐',
 };
 
 function ModelPicker({
@@ -326,6 +328,14 @@ function ProviderKeyInputs({
                 <UrlInput label="DeepLX Server URL" field="deeplxUrl" value={settings.deeplxUrl}
                     placeholder="http://localhost:1188"
                     desc="Run DeepLX locally: docker run -d -p 1188:1188 ghcr.io/ifyour/deeplx" update={update} />
+            );
+        case 'browser':
+            return (
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                    {isBrowserTranslatorSupported()
+                        ? 'No API key needed — translation runs entirely on your device. The first translation for a language pair may take a moment while the browser downloads its language pack.'
+                        : 'Your browser does not support the built-in Translator API. Use Chrome 138+ (desktop) or pick another provider.'}
+                </p>
             );
         default:
             return null;

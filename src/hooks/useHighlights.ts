@@ -98,9 +98,18 @@ export function useHighlights(bookId: string | undefined, rendition: Rendition |
 
         await db.highlights.add(hl);
 
-        // Apply immediately to the live rendition
+        // Apply immediately to the live rendition.
+        // The user's native selection is still active at this point: it can both
+        // visually cover the new <mark> and make epubjs's getRange(cfi) resolve
+        // incorrectly, so clear it first, then verify and retry one frame later.
         if (renditionRef.current) {
             applyCurrentView(renditionRef.current, [hl]);
+            clearDocSelections(renditionRef.current);
+            if (!isHighlightApplied(renditionRef.current, hl.id)) {
+                requestAnimationFrame(() => {
+                    if (renditionRef.current) applyCurrentView(renditionRef.current, [hl]);
+                });
+            }
         }
 
         await refresh();
@@ -173,6 +182,31 @@ function applyHighlightToDoc(h: Highlight, doc: Document, rendition: Rendition) 
     if (range.startContainer.ownerDocument !== doc) return;
 
     wrapRangeWithMark(range, h.id, h.color);
+}
+
+/** Iterate the documents of all currently rendered views */
+function getRenderedDocs(rendition: Rendition): Document[] {
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const views = (rendition as any).manager?.views?._views ?? [];
+        return views
+            .map((v: { document?: Document }) => v?.document)
+            .filter((d: Document | undefined): d is Document => !!d);
+    } catch {
+        return [];
+    }
+}
+
+/** Clear the native text selection in every rendered iframe */
+function clearDocSelections(rendition: Rendition) {
+    for (const doc of getRenderedDocs(rendition)) {
+        try { doc.getSelection()?.removeAllRanges(); } catch { /* ignore */ }
+    }
+}
+
+/** True if a highlight's marks exist in any rendered view */
+function isHighlightApplied(rendition: Rendition, id: string): boolean {
+    return getRenderedDocs(rendition).some(doc => !!doc.querySelector(`.aurobie-hl-${id}`));
 }
 
 /** Apply highlights to whatever views are currently rendered */

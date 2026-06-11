@@ -31,6 +31,29 @@ interface UseAutoTranslateOptions {
  *    translations as CSS pseudo-elements — zero DOM structure change
  *  - clearTranslations: removes data-translation attributes and the style element
  */
+/**
+ * Split a batch translation back into per-paragraph chunks.
+ *
+ * Paragraphs are sent joined with "\n\n---\n\n", but translation providers
+ * often mangle the separator (drop the blank lines, glue "---" into the
+ * surrounding sentence, etc.). Try increasingly tolerant separators and only
+ * accept a split that yields exactly the expected number of chunks; otherwise
+ * return null so the caller can fall back to per-paragraph translation.
+ */
+function splitBatchTranslation(translation: string, expected: number): string[] | null {
+    if (expected === 1) return [translation];
+    const separators = [
+        /\n\n---\n\n/,          // intact
+        /\n\s*-{3,}\s*\n/,      // separator on its own line, whitespace tweaked
+        /\s+-{3,}\s+/,          // collapsed into running text: "… rừng. --- Khu rừng …"
+    ];
+    for (const sep of separators) {
+        const parts = translation.split(sep).map(s => s.trim()).filter(Boolean);
+        if (parts.length === expected) return parts;
+    }
+    return null;
+}
+
 export function useAutoTranslate({
     enabled,
     showTranslation,
@@ -137,14 +160,32 @@ export function useAutoTranslate({
 
                 if (abortRef.current || currentDocRef.current !== doc) break;
 
-                const translated = result.translation.split(/\n\n---\n\n/);
+                const translated = splitBatchTranslation(result.translation, group.length);
 
-                group.forEach((p, i) => {
-                    const text = translated[i]?.trim();
-                    if (text) {
-                        p.setAttribute('data-translation', text);
+                if (translated) {
+                    group.forEach((p, i) => {
+                        const text = translated[i]?.trim();
+                        if (text) {
+                            p.setAttribute('data-translation', text);
+                        }
+                    });
+                } else {
+                    // The provider mangled the batch separators (common with
+                    // Google Translate / browser translation) — fall back to
+                    // translating each paragraph individually so translations
+                    // stay interleaved with their own paragraphs.
+                    for (const p of group) {
+                        if (abortRef.current || currentDocRef.current !== doc) break;
+                        try {
+                            const single = await translate({ text: p.textContent!.trim(), targetLang, bookId });
+                            const text = single.translation.trim();
+                            if (text) p.setAttribute('data-translation', text);
+                        } catch (err) {
+                            if (err instanceof TranslationError && (err.isRateLimited || err.allModelsFailed)) throw err;
+                            // Non-fatal: skip this paragraph
+                        }
                     }
-                });
+                }
 
                 done += group.length;
                 setState({

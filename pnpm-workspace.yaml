@@ -1,0 +1,10 @@
+allowBuilds:
+  a: true
+  core-js: true
+  es5-ext: true
+  esbuild: true
+  i: true
+  m: true
+  p: true
+  r: true
+  s: true

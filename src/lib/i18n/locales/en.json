@@ -12,6 +12,8 @@
     "open": "Open",
     "removeFromLibrary": "Remove from library",
     "removeConfirm": "Remove \"{title}\" from library?",
+    "removeConfirmDesc": "This action cannot be undone. Your reading progress will be lost.",
+    "cancel": "Cancel",
     "continueReading": "Continue reading",
     "resume": "Resume",
     "bookTitle": "Title",

@@ -4,6 +4,7 @@ import { useReaderStore } from '@/stores/readerStore';
 import { useLocale, useT } from '@/lib/i18n/context';
 import { bookStatus, type Book } from '@/lib/db/schema';
 import { BookCard } from './BookCard';
+import { BookContextMenu } from './BookContextMenu';
 import { toast } from 'sonner';
 import '@/styles/library.css';
 import { Moon02Icon, QuoteUpIcon, Sun03Icon, SunCloud02Icon } from '@hugeicons/core-free-icons';
@@ -365,7 +366,6 @@ function ListLayout({ books, onOpen, onDelete }: { books: Book[]; onOpen: (b: Bo
 }
 
 function ListRow({ book, onOpen, onDelete, last }: { book: Book; onOpen: (b: Book) => void; onDelete: (id: string) => void; last: boolean }) {
-    const t = useT();
     const [coverUrl, setCoverUrl] = useState<string | null>(null);
     const [hovered, setHovered] = useState(false);
     useEffect(() => {
@@ -377,24 +377,31 @@ function ListRow({ book, onOpen, onDelete, last }: { book: Book; onOpen: (b: Boo
     const pct = Math.round(book.progress * 100);
     const lastRead = book.lastReadAt ? new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(book.lastReadAt) : '—';
     return (
-        <button onClick={() => onOpen(book)} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-            onContextMenu={e => { e.preventDefault(); if (confirm(t.removeConfirm(book.title))) onDelete(book.id); }}
-            style={{ display: 'grid', gridTemplateColumns: '2.4fr 1.4fr 1.2fr 1fr', alignItems: 'center', gap: 16, padding: '14px 18px', border: 0, background: hovered ? 'var(--paper)' : 'transparent', cursor: 'pointer', textAlign: 'left', borderBottom: last ? 0 : '.5px solid var(--line)', width: '100%', color: 'var(--ink)', transition: 'background .15s' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <div style={{ width: 40, height: 60, flexShrink: 0, borderRadius: 2, overflow: 'hidden', background: 'var(--paper-3)' }}>
-                    {coverUrl && <img src={coverUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-                </div>
-                <p style={{ fontFamily: 'var(--serif)', fontSize: 16, lineHeight: 1.2, fontStyle: 'italic', fontWeight: 500, margin: 0 }}>{book.title}</p>
-            </div>
-            <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>{book.author}</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ flex: 1, height: 3, background: 'var(--paper-3)', borderRadius: 999, overflow: 'hidden', maxWidth: 120 }}>
-                    <div style={{ height: '100%', width: `${pct}%`, background: 'var(--ink)' }} />
-                </div>
-                <span style={{ fontSize: 11, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{pct}%</span>
-            </div>
-            <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{lastRead}</span>
-        </button>
+        <BookContextMenu title={book.title} onDelete={() => onDelete(book.id)}>
+            {({ onContextMenu, onTouchStart, onTouchEnd, onTouchMove }) => (
+                <button onClick={() => onOpen(book)} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+                    onContextMenu={onContextMenu}
+                    onTouchStart={onTouchStart}
+                    onTouchEnd={onTouchEnd}
+                    onTouchMove={onTouchMove}
+                    style={{ display: 'grid', gridTemplateColumns: '2.4fr 1.4fr 1.2fr 1fr', alignItems: 'center', gap: 16, padding: '14px 18px', border: 0, background: hovered ? 'var(--paper)' : 'transparent', cursor: 'pointer', textAlign: 'left', borderBottom: last ? 0 : '.5px solid var(--line)', width: '100%', color: 'var(--ink)', transition: 'background .15s' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                        <div style={{ width: 40, height: 60, flexShrink: 0, borderRadius: 2, overflow: 'hidden', background: 'var(--paper-3)' }}>
+                            {coverUrl && <img src={coverUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                        </div>
+                        <p style={{ fontFamily: 'var(--serif)', fontSize: 16, lineHeight: 1.2, fontStyle: 'italic', fontWeight: 500, margin: 0 }}>{book.title}</p>
+                    </div>
+                    <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>{book.author}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ flex: 1, height: 3, background: 'var(--paper-3)', borderRadius: 999, overflow: 'hidden', maxWidth: 120 }}>
+                            <div style={{ height: '100%', width: `${pct}%`, background: 'var(--ink)' }} />
+                        </div>
+                        <span style={{ fontSize: 11, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{pct}%</span>
+                    </div>
+                    <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{lastRead}</span>
+                </button>
+            )}
+        </BookContextMenu>
     );
 }
 

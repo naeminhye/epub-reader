@@ -12,6 +12,8 @@
     "open": "열기",
     "removeFromLibrary": "라이브러리에서 제거",
     "removeConfirm": "\"{title}\"을(를) 라이브러리에서 제거할까요?",
+    "removeConfirmDesc": "이 작업은 취소할 수 없습니다. 읽기 진행 상황이 삭제됩니다.",
+    "cancel": "취소",
     "continueReading": "계속 읽기",
     "resume": "이어 읽기",
     "bookTitle": "제목",

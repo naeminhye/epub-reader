@@ -12,6 +12,8 @@
     "open": "Mở",
     "removeFromLibrary": "Xóa khỏi thư viện",
     "removeConfirm": "Xóa \"{title}\" khỏi thư viện?",
+    "removeConfirmDesc": "Hành động này không thể hoàn tác. Tiến độ đọc của bạn sẽ bị mất.",
+    "cancel": "Hủy",
     "continueReading": "Tiếp tục đọc",
     "resume": "Tiếp tục",
     "bookTitle": "Tiêu đề",

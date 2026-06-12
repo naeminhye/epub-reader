@@ -35,6 +35,8 @@ function buildTranslations(raw: RawLocale) {
         dropOrClick: raw.dropOrClick,
         open: raw.open,
         removeFromLibrary: raw.removeFromLibrary,
+        removeConfirmDesc: raw.removeConfirmDesc,
+        cancel: raw.cancel,
         continueReading: raw.continueReading,
         resume: raw.resume,
         bookTitle: raw.bookTitle,

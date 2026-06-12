@@ -150,7 +150,7 @@ export interface TranslationSettings {
 const STORAGE_KEY = 'aurobie-translation-settings';
 
 export const DEFAULTS: TranslationSettings = {
-    provider: 'gemini',
+    provider: 'browser',
     geminiModel: 'flash-lite',
     openrouterModel: 'anthropic/claude-3-haiku',
     geminiApiKey: '',

@@ -54,7 +54,7 @@ export function TranslationSettingsPanel({ open, onClose }: TranslationSettingsP
 
     return (
         <Sheet open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-            <SheetContent side="right" className="w-full sm:max-w-md flex flex-col gap-0 p-0 h-full">
+            <SheetContent side="right" className="w-full max-w-full sm:max-w-md flex flex-col gap-0 p-0 h-full">
                 <SheetHeader className="px-6 py-4 border-b shrink-0">
                     <SheetTitle className="font-heading">{t.translationSettings}</SheetTitle>
                     <SheetDescription className="text-xs">{t.translationEngineDesc}</SheetDescription>
@@ -140,6 +140,20 @@ export function TranslationSettingsPanel({ open, onClose }: TranslationSettingsP
                             </div>
 
                             <div className="space-y-2">
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Browser Translation</p>
+                                {browserProviders.map(p => (
+                                    <ProviderCard
+                                        key={p.id}
+                                        id={p.id}
+                                        name={p.name}
+                                        tagline={p.tagline}
+                                        active={settings.provider === p.id}
+                                        onSelect={() => update('provider', p.id)}
+                                    />
+                                ))}
+                            </div>
+
+                            <div className="space-y-2">
                                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">AI Translation</p>
                                 {llmProviders.map(p => (
                                     <ProviderCard
@@ -156,20 +170,6 @@ export function TranslationSettingsPanel({ open, onClose }: TranslationSettingsP
                             <div className="space-y-2">
                                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Translation APIs</p>
                                 {neuralProviders.map(p => (
-                                    <ProviderCard
-                                        key={p.id}
-                                        id={p.id}
-                                        name={p.name}
-                                        tagline={p.tagline}
-                                        active={settings.provider === p.id}
-                                        onSelect={() => update('provider', p.id)}
-                                    />
-                                ))}
-                            </div>
-
-                            <div className="space-y-2">
-                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Browser Translation</p>
-                                {browserProviders.map(p => (
                                     <ProviderCard
                                         key={p.id}
                                         id={p.id}
@@ -244,7 +244,7 @@ function ProviderCard({
             <span className="text-base shrink-0 w-5 text-center">{icon}</span>
             <div className="min-w-0">
                 <p className={`text-sm font-medium ${active ? 'text-foreground' : 'text-foreground/80'}`}>{name}</p>
-                <p className="text-xs text-muted-foreground truncate">{tagline}</p>
+                <p className="text-xs text-muted-foreground line-clamp-2">{tagline}</p>
             </div>
             {active && <span className="ml-auto text-foreground shrink-0">✓</span>}
         </button>

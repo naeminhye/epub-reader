@@ -340,11 +340,8 @@ export function useEpubReader({
             '--reader-max-width': `${prefs.maxWidthCh}ch`,
         };
 
-        // Theme colors
-        const bgMap = { light: '#fafaf9', sepia: '#f4ecd8', dark: '#1a1a1a' };
-        const fgMap = { light: '#1a1a1a', sepia: '#5b4636', dark: '#e5e5e5' };
-        overrides['background-color'] = bgMap[prefs.theme];
-        overrides['color'] = fgMap[prefs.theme];
+        overrides['background-color'] = THEME_BG[prefs.theme] ?? THEME_BG.light;
+        overrides['color'] = THEME_FG[prefs.theme] ?? THEME_FG.light;
 
         try {
             Object.entries(overrides).forEach(([k, v]) => {
@@ -430,10 +427,31 @@ export function useEpubReader({
     };
 }
 
+const THEME_BG: Record<string, string> = { light: '#fafaf9', sepia: '#f4ecd8', dark: '#1a1a1a' };
+const THEME_FG: Record<string, string> = { light: '#1a1a1a', sepia: '#5b4636', dark: '#e5e5e5' };
+
 function applyBodyClasses(body: HTMLElement, prefs: ReadingPrefs) {
     if (!body) return;
+
+    // Apply theme class + direct background/color to BOTH html and body so that
+    // epub-supplied stylesheets (which often hardcode white on body or html) are
+    // fully overridden and no light background leaks from the html element.
+    const html = body.ownerDocument?.documentElement;
+    const bg = THEME_BG[prefs.theme] ?? THEME_BG.light;
+    const fg = THEME_FG[prefs.theme] ?? THEME_FG.light;
+
+    if (html) {
+        html.classList.remove('theme-light', 'theme-sepia', 'theme-dark');
+        html.classList.add(`theme-${prefs.theme}`);
+        html.style.setProperty('background-color', bg, 'important');
+        html.style.setProperty('color', fg, 'important');
+    }
+
     body.classList.remove('theme-light', 'theme-sepia', 'theme-dark');
     body.classList.add(`theme-${prefs.theme}`);
+    body.style.setProperty('background-color', bg, 'important');
+    body.style.setProperty('color', fg, 'important');
+
     body.classList.remove(
         'font-eb-garamond', 'font-merriweather',
         'font-montserrat', 'font-public-sans', 'font-system-serif'
